@@ -13,8 +13,8 @@ class EncryptionResponsePacket(Base):
     id = 0x01
 
     fields = [
-        {"shared_secret", RawByteArray(VarInt)},
-        {"verify_token",  RawByteArray(VarInt)},
+        {"shared_secret": RawByteArray(VarInt)},
+        {"verify_token":  RawByteArray(VarInt)},
     ]
 
 class LoginPluginResponse(Base):
@@ -22,6 +22,6 @@ class LoginPluginResponse(Base):
 
     fields = [
         {"message_id": VarInt},
-        {"successful", Boolean},
-        {"data",       RawByteArray()},
+        {"successful": Boolean},
+        {"data":       RawByteArray()},
     ]

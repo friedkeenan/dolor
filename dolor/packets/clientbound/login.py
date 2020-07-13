@@ -13,9 +13,9 @@ class EncryptionRequestPacket(Base):
     id = 0x01
 
     fields = [
-        {"server_id":        String},
-        {"pub_key":          RawByteArray(VarInt)},
-        {"verify_token":     RawByteArray(VarInt)},
+        {"server_id":    String},
+        {"pub_key":      RawByteArray(VarInt)},
+        {"verify_token": RawByteArray(VarInt)},
     ]
 
 class LoginSuccessPacket(Base):
@@ -36,6 +36,6 @@ class LoginPluginRequestPacket(Base):
 
     fields = [
         {"message_id": VarInt},
-        {"channel": Identifier},
-        {"data": RawByteArray()},
+        {"channel":    Identifier},
+        {"data":       RawByteArray()},
     ]
