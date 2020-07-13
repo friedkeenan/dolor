@@ -1,5 +1,6 @@
 import asyncio
 import io
+import time
 
 from . import enums
 from . import util
@@ -23,32 +24,31 @@ class Client:
         def data_received(self, data):
             self.buffer.extend(data)
 
-            # TODO: Clean this up
-            if len(self.buffer) == self.length:
-                self.client.data_received(self.buffer[:self.length])
-
-                del self.buffer[:self.length]
-                self.length = 0
-            else:
-                while len(self.buffer) > self.length:
-                    # TODO: Act accordingly if we don't get enough data for a VarInt
-                    if self.length == 0:
+            while len(self.buffer) != 0 and len(self.buffer) >= self.length:
+                if self.length <= 0:
+                    try:
                         self.length = VarInt(self.buffer)
-                        del self.buffer[:len(self.length)]
-                        self.length = self.length.value
+                    except:
+                        return
 
-                    if len(self.buffer) >= self.length:
-                        self.client.data_received(self.buffer[:self.length])
+                    del self.buffer[:len(self.length)]
+                    self.length = self.length.value
 
-                        del self.buffer[:self.length]
-                        self.length = 0
+                if len(self.buffer) >= self.length:
+                    self.client.data_received(self.buffer[:self.length])
+
+                    del self.buffer[:self.length]
+                    self.length = 0
 
     def __init__(self, address, port=25565):
         self.address = address
         self.port = port
+        self.transport = None
 
         self.ctx = PacketContext()
         self.current_state = enums.State.Handshaking
+
+        self.closed = True
 
     def gen_packet_info(self, state=None):
         if state is None:
@@ -72,7 +72,7 @@ class Client:
     @property
     def current_state(self):
         return self._current_state
-    
+
     @current_state.setter
     def current_state(self, state):
         self._current_state = state
@@ -82,18 +82,28 @@ class Client:
         return self.Protocol(self)
 
     def connection_made(self):
-        pass
+        self.closed = False
 
     def connection_lost(self, exc):
-        pass
+        self.closed = True
 
     def data_received(self, data):
         data = io.BytesIO(data)
-        
+
         id = VarInt(data).value
         pack_class = self.packet_info[id]
 
         self.read_queue.put_nowait(pack_class(data, ctx=self.ctx))
+
+    def close(self):
+        self.closed = True
+        if not self.transport.is_closing():
+            self.transport.write_eof()
+            self.transport.close()
+
+    def abort(self):
+        self.transport.abort()
+        self.close()
 
     async def read_packet(self):
         return await self.read_queue.get()
@@ -101,11 +111,11 @@ class Client:
     async def write_packet(self, pack):
         self.transport.write(bytes(pack))
 
-    async def connect(self):
+    async def start(self):
         self.read_queue = asyncio.Queue()
-        self.transport, self.protocol = await asyncio.get_running_loop().create_connection(self.protocol_factory, self.address, self.port)
+        self.transport, _ = await asyncio.get_running_loop().create_connection(self.protocol_factory, self.address, self.port)
 
-        await self.status()
+        await self.on_start()
 
     async def status(self):
         if self.current_state != enums.State.Handshaking:
@@ -123,11 +133,15 @@ class Client:
         await self.write_packet(serverbound.RequestPacket())
         resp = await self.read_packet()
 
-        print("Response:", resp)
-
-        await self.write_packet(serverbound.PingPacket(payload=0))
+        await self.write_packet(serverbound.PingPacket(payload=int(time.time() * 1000)))
         pong = await self.read_packet()
-        print("Pong:", pong)
+
+        self.close()
+
+        return resp.response, int(time.time() * 1000) - pong.payload
+
+    async def on_start(self):
+        pass
 
     def run(self):
-        asyncio.run(self.connect())
+        asyncio.run(self.start())

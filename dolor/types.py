@@ -1,5 +1,6 @@
-import struct
 import io
+import copy
+import struct
 import math
 import uuid
 import json
@@ -10,7 +11,8 @@ class Type:
 
     def __init__(self, buf=None):
         if buf is None:
-            self.value = self.zero
+            # deepcopy because self.zero could be mutable
+            self.value = copy.deepcopy(self.zero)
         else:
             if isinstance(buf, (bytes, bytearray)):
                 buf = io.BytesIO(buf)
@@ -47,7 +49,10 @@ class Type:
 
 class TypeSum:
     def __init__(self, *types):
-        self.types = types
+        self.types = list(types)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({', '.join(repr(x) for x in self.types)})"
 
     def __bytes__(self):
         return b"".join(bytes(x) for x in self.types)
@@ -55,11 +60,20 @@ class TypeSum:
     def __len__(self):
         return sum(len(x) for x in self.types)
 
+    def __getitem__(self, idx):
+        if isinstance(idx, slice):
+            return type(self)(*self.types[idx])
+
+        return self.types[idx]
+
+    def __setitem__(self, idx, value):
+        self.types[idx] = value
+
     def __add__(self, other):
         if isinstance(other, Type):
-            return TypeSum(*self.types, other)
+            return type(self)(*self.types, other)
 
-        return TypeSum(*self.types, *other.types)
+        return type(self)(*self.types, *other.types)
 
 class SimpleType(Type):
     """
@@ -117,27 +131,47 @@ class BaseArray(Type):
     elem_type = None
     len_attr = None
 
-    def __init__(self, buf, num_elems=None):
+    def __init__(self, buf=None, num_elems=None):
         if isinstance(self.len_attr, int):
             self.num_elems = self.len_attr
         else:
             self.num_elems = num_elems
 
+        self.len_obj = None
+
         super().__init__(buf)
 
     def unpack(self, buf):
+        if self.is_prefixed_by_type():
+            self.len_obj = self.len_attr(buf)
+            self.num_elems = self.len_obj.value
+
         if self.num_elems is not None:
             return [self.elem_type(buf).value for x in range(self.num_elems)]
-        else:
-            ret = []
-            while True:
-                try:
-                    ret.append(self.elem_type(buf).value)
-                except:
-                    return ret
+
+        ret = []
+        while True:
+            try:
+                ret.append(self.elem_type(buf).value)
+            except:
+                return ret
 
     def __bytes__(self):
-        return b"".join(bytes(self.elem_type(x)) for x in self.value)
+        ret =  b"".join(bytes(self.elem_type(x)) for x in self.value)
+
+        if self.is_prefixed_by_type():
+            if self.len_obj is None:
+                self.len_obj = self.len_attr(len(self.value))
+            else:
+                self.len_obj.value = len(self.value)
+
+            ret = bytes(self.len_obj) + ret
+
+        return ret
+
+    @classmethod
+    def is_prefixed_by_type(cls):
+        return isinstance(cls.len_attr, type) and issubclass(cls.len_attr, Type)
 
 def Array(elem_type, len_attr=None):
     return type(f"{elem_type.__name__}Array", (BaseArray,), {"elem_type": elem_type, "len_attr": len_attr})
@@ -146,10 +180,24 @@ class BaseRawByteArray(BaseArray):
     zero = bytearray()
 
     def unpack(self, buf):
+        if self.is_prefixed_by_type():
+            self.len_obj = self.len_attr(buf)
+            self.num_elems = self.len_obj.value
+
         return bytearray(buf.read(self.num_elems))
 
     def __bytes__(self):
-        return bytes(self.value)
+        ret = bytes(self.value)
+
+        if self.is_prefixed_by_type():
+            if self.len_obj is None:
+                self.len_obj = self.len_attr(len(self.value))
+            else:
+                self.len_obj.value = len(self.value)
+
+            ret = bytes(self.len_obj) + ret
+
+        return ret
 
 def RawByteArray(len_attr=None):
     return type("RawByteArray", (BaseRawByteArray,), {"len_attr": len_attr})
@@ -331,5 +379,45 @@ class UUID(Type):
 
     def unpack(self, buf):
         return uuid.UUID(bytes=buf.read(16))
+
     def __bytes__(self):
         return self.value.bytes
+
+class UUIDString(UUID):
+    def unpack(self, buf):
+        return uuid.UUID(String(buf).value)
+
+    def __bytes__(self):
+        return bytes(String(str(self.value)))
+
+class Identifier(Type):
+    class RealIdentifier:
+        def __init__(self, id=None):
+            if id is None:
+                self.namespace = None
+                self.name = None
+            else:
+                parts = id.split(":")
+
+                if len(parts) == 1:
+                    self.namespace = "minecraft"
+                    self.name = parts[0]
+                elif len(parts) == 2:
+                    self.namespace = parts[0]
+                    self.name = parts[1]
+                else:
+                    raise ValueError("Invalid identifier")
+
+        def __str__(self):
+            return f"{self.namespace}:{self.name}"
+
+        def __repr__(self):
+            return f'Identifier("{self}")'
+
+    zero = RealIdentifier()
+
+    def unpack(self, buf):
+        return self.RealIdentifier(String(buf).value)
+
+    def __bytes__(self):
+        return bytes(String(str(self.value)))

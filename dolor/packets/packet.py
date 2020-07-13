@@ -24,6 +24,8 @@ class Packet:
                         value = attr_type(buf.read())
                     elif isinstance(attr_type.len_attr, int):
                         value = attr_type(buf)
+                    elif attr_type.is_prefixed_by_type():
+                        value = attr_type(buf)
                     else:
                         value = attr_type(buf, num_elems=getattr(self, attr_type.len_attr))
                 else:
@@ -67,12 +69,20 @@ class Packet:
         ret = VarInt(self.id)
 
         for attr_name, _ in self.enumerate_fields():
-            ret += getattr(self.raw, attr_name)
+            tmp = getattr(self.raw, attr_name)
+
+            # Set the appropriate length attribute for an array
+            if isinstance(tmp, BaseArray):
+                if tmp.len_attr is not None and not isinstance(tmp.len_attr, int) and not tmp.is_prefixed_by_type():
+                    tmp_len = getattr(self.raw, tmp.len_attr)
+                    tmp_len.value = len(tmp.value) # Will also affect the type in ret
+
+            ret += tmp
 
         ret = bytes(ret)
 
         ret = bytes(VarInt(len(ret))) + ret
-        
+
         return ret
 
     def enumerate_fields(self):
