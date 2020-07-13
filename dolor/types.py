@@ -6,14 +6,19 @@ import json
 from . import util
 
 class Type:
-    def __init__(self, buf):
-        if isinstance(buf, (bytes, bytearray)):
-            buf = io.BytesIO(buf)
+    zero = None
 
-        if isinstance(buf, io.IOBase):
-            self.value = self.unpack(buf)
+    def __init__(self, buf=None):
+        if buf is None:
+            self.value = self.zero
         else:
-            self.value = buf
+            if isinstance(buf, (bytes, bytearray)):
+                buf = io.BytesIO(buf)
+
+            if isinstance(buf, io.IOBase):
+                self.value = self.unpack(buf)
+            else:
+                self.value = buf
 
     def __repr__(self):
         return f"{type(self).__name__}({repr(self.value)})"
@@ -34,25 +39,52 @@ class Type:
 
         raise NotImplementedError
 
+    def __len__(self):
+        return len(bytes(self))
+
+    def __add__(self, other):
+        return TypeSum(self, other)
+
+class TypeSum:
+    def __init__(self, *types):
+        self.types = types
+
+    def __bytes__(self):
+        return b"".join(bytes(x) for x in self.types)
+
+    def __len__(self):
+        return sum(len(x) for x in self.types)
+
+    def __add__(self, other):
+        if isinstance(other, Type):
+            return TypeSum(*self.types, other)
+
+        return TypeSum(*self.types, *other.types)
+
 class SimpleType(Type):
     """
     Essentially just a struct wrapper
     """
 
+    zero = 0
     fmt = None
 
     def unpack(self, buf):
         ret = struct.unpack(f">{self.fmt}", buf.read(struct.calcsize(self.fmt)))
+
         if len(ret) == 1:
             return ret[0]
+
         return ret
 
     def __bytes__(self):
         if hasattr(self.value, "__iter__"):
             return struct.pack(f">{self.fmt}", *self.value)
+
         return struct.pack(f">{self.fmt}", self.value)
 
 class Boolean(SimpleType):
+    zero = False
     fmt = "?"
 
 class Byte(SimpleType):
@@ -80,6 +112,8 @@ class Double(SimpleType):
     fmt = "d"
 
 class BaseArray(Type):
+    zero = []
+
     elem_type = None
     len_attr = None
 
@@ -109,6 +143,8 @@ def Array(elem_type, len_attr=None):
     return type(f"{elem_type.__name__}Array", (BaseArray,), {"elem_type": elem_type, "len_attr": len_attr})
 
 class BaseRawByteArray(BaseArray):
+    zero = bytearray()
+
     def unpack(self, buf):
         return bytearray(buf.read(self.num_elems))
 
@@ -119,8 +155,6 @@ def RawByteArray(len_attr=None):
     return type("RawByteArray", (BaseRawByteArray,), {"len_attr": len_attr})
 
 class BaseVector(Type):
-    elem_type = None
-
     class Vector:
         def __init__(self, x=0, y=0, z=0):
             self.x = x
@@ -131,9 +165,6 @@ class BaseVector(Type):
             return type(self)(-self.x, -self.y, -self.z)
 
         def __add__(self, other):
-            if not isinstance(other, Vector):
-                return NotImplemented
-
             return type(self)(self.x + other.x, self.y + other.y, self.z + other.z)
 
         def __sub__(self, other):
@@ -146,7 +177,7 @@ class BaseVector(Type):
             return self * other
 
         def __truediv__(self, other):
-            return self * (1/other)
+            return self * (1 / other)
 
         def __floordiv__(self, other):
             return type(self)(self.x // other, self.y // other, self.z // other)
@@ -159,8 +190,11 @@ class BaseVector(Type):
         def __repr__(self):
             return f"{type(self).__name__}({self.x}, {self.y}, {self.z})"
 
+    zero = Vector()
+    elem_type = None
+
     def unpack(self, buf):
-        return type(self).Vector(*([self.elem_type(buf).value] * 3))
+        return self.Vector(*([self.elem_type(buf).value] * 3))
 
     def __bytes__(self):
         return b"".join(bytes(self.elem_type(x)) for x in self.value)
@@ -179,24 +213,27 @@ class BaseEnum(Type):
         return bytes(self.elem_type(self.value.value))
 
 def Enum(elem_type, enum_type):
-    return type(f"{elem_type.__name__}Enum", (BaseEnum,), {"elem_type": elem_type, "enum_type": enum_type})
+    return type(f"{elem_type.__name__}Enum", (BaseEnum,), {
+        "zero":      tuple(enum_type.__members__.values())[0],
+        "elem_type": elem_type,
+        "enum_type": enum_type,
+    })
 
 class VarInt(Type):
+    zero = 0
+
     def unpack(self, buf):
         ret = 0
-        num_read = 0
 
-        while True:
+        for i in range(5):
             read = buf.read(1)[0]
             value = read & 0x7f
-            ret |= value << (7 * num_read)
-
-            num_read += 1
-            if num_read > 5:
-                raise ValueError("VarInt is too big")
+            ret |= value << (7 * i)
 
             if read & 0x80 == 0:
                 return util.to_signed(ret)
+
+        raise ValueError("VarInt is too big")
 
     def __bytes__(self):
         value = self.value
@@ -215,21 +252,20 @@ class VarInt(Type):
                 return ret
 
 class VarLong(Type):
+    zero = 0
+
     def unpack(self, buf):
         ret = 0
-        num_read = 0
 
-        while True:
+        for i in range(5):
             read = buf.read(1)[0]
             value = read & 0x7f
-            ret |= value << (7 * num_read)
-
-            num_read += 1
-            if num_read > 10:
-                raise ValueError("VarLong is too big")
+            ret |= value << (7 * i)
 
             if read & 0x80 == 0:
                 return util.to_signed(ret, bits=64)
+
+        raise ValueError("VarLong is too big")
 
     def __bytes__(self):
         value = self.value
@@ -248,23 +284,29 @@ class VarLong(Type):
                 return ret
 
 class String(Type):
+    zero = ""
+
     def unpack(self, buf):
         length = VarInt(buf).value
-        return buf.read(length).decode()
+        return buf.read(length).decode("utf8")
 
     def __bytes__(self):
-        ret = self.value.encode()
+        ret = self.value.encode("utf8")
         ret = bytes(VarInt(len(ret))) + ret
         return ret
 
 class Json(Type):
+    zero = {}
+
     def unpack(self, buf):
         return json.loads(String(buf).value)
 
     def __bytes__(self):
-        return bytes(String(json.dumps(self.value)))
+        return bytes(String(json.dumps(self.value, separators=(",", ":"))))
 
 class Position(Type):
+    zero = BaseVector.Vector()
+
     def unpack(self, buf):
         val = struct.unpack(">Q", buf.read(8))[0]
         return BaseVector.Vector(util.to_signed(val >> 38, bits=26),
@@ -276,6 +318,8 @@ class Position(Type):
         return struct.pack(">Q", val)
 
 class Angle(Type):
+    zero = 0
+
     def unpack(self, buf):
         return math.tau * UnsignedByte(buf).value / 256
 
@@ -283,6 +327,8 @@ class Angle(Type):
         return bytes(UnsignedByte(round(256 * (self.value % math.tau) / math.tau)))
 
 class UUID(Type):
+    zero = uuid.UUID(int=0)
+
     def unpack(self, buf):
         return uuid.UUID(bytes=buf.read(16))
     def __bytes__(self):

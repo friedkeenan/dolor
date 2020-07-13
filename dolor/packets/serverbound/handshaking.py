@@ -8,7 +8,7 @@ class Base(ServerboundPacket, HandshakingPacket):
 class HandshakePacket(Base):
     id = 0x00
 
-    fields = [{"proto": VarInt},
+    fields = [{"proto_version":  VarInt},
               {"server_address": String},
-              {"server_port": UnsignedShort},
-              {"next_state": Enum(VarInt, enums.State)}]
+              {"server_port":    UnsignedShort},
+              {"next_state":     Enum(VarInt, enums.State)}]

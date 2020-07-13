@@ -1,5 +1,7 @@
 from enum import Enum
 
 class State(Enum):
-    Status = 1
-    Login = 2
+    Handshaking = 0
+    Status      = 1
+    Login       = 2
+    Play        = 3

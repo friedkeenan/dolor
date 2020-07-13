@@ -1,27 +1,22 @@
 import io
 from ..types import *
+from .. import util
 
-class Raw:
-    def __init__(self, owner):
-        self.owner = owner
-
-    def __getattr__(self, attr):
-        return self.owner.__dict__[attr]
+class PacketContext:
+    def __init__(self, proto=None):
+        self.proto = proto
 
 class Packet:
-    def __init__(self, buf=None, **kwargs):
-        self.raw = Raw(self)
+    id = None
+    fields = None
+
+    def __init__(self, buf=None, *, ctx=None, **kwargs):
+        self.raw = util.Raw(self)
+        self.raw.ctx = ctx
 
         if buf is not None:
             if isinstance(buf, (bytes, bytearray)):
                 buf = io.BytesIO(buf)
-
-            length = VarInt(buf).value
-            buf = io.BytesIO(buf.read(length))
-
-            id = VarInt(buf).value
-            if id != self.id:
-                raise ValueError(f"Incorrect packet ID for {type(self).__name__}: {hex(id)}")
 
             for attr_name, attr_type in self.enumerate_fields():
                 if issubclass(attr_type, BaseArray):
@@ -34,27 +29,29 @@ class Packet:
                 else:
                     value = attr_type(buf)
 
-                object.__setattr__(self, attr_name, value)
+                setattr(self.raw, attr_name, value)
+        else:
+            for attr_name, attr_type in self.enumerate_fields():
+                setattr(self.raw, attr_name, attr_type())
 
         for attr, value in kwargs.items():
             setattr(self, attr, value)
 
     def __getattribute__(self, attr):
-        if attr == "raw":
-            return self.__dict__["raw"]
-
         v = object.__getattribute__(self, attr)
         if isinstance(v, Type):
             return v.value
         return v
 
     def __setattr__(self, attr, value):
+        # Need this to avoid enumerating fields before self.ctx is set
         if attr == "raw":
-            return object.__setattr__(self, attr, value)
+            object.__setattr__(self, attr, value)
+            return
 
         for attr_name, attr_type in self.enumerate_fields():
             if attr_name == attr:
-                object.__setattr__(self, attr, attr_type(value))
+                setattr(self.raw, attr, attr_type(value))
                 break
         else:
             object.__setattr__(self, attr, value)
@@ -67,28 +64,35 @@ class Packet:
         return ret
 
     def __bytes__(self):
-        ret = bytes(VarInt(self.id)) + b"".join(bytes(getattr(self.raw, x[0])) for x in self.enumerate_fields())
+        ret = VarInt(self.id)
+
+        for attr_name, _ in self.enumerate_fields():
+            ret += getattr(self.raw, attr_name)
+
+        ret = bytes(ret)
+
         ret = bytes(VarInt(len(ret))) + ret
+        
         return ret
 
     def enumerate_fields(self):
-        for field in self.fields:
+        for field in self.get_fields(self.ctx):
             items = tuple(field.items())
             yield items[0][0], items[0][1]
 
-    @property
-    def id(self):
+    @classmethod
+    def get_id(cls, ctx):
         """
         Should return the packet ID.
 
         If the ID needs to change based on the
-        protocol version, self.proto should be
-        set before accessing this.
+        protocol version, use ctx.proto.
         """
 
-        raise NotImplementedError
-    
-    def fields(self):
+        return cls.id
+
+    @classmethod
+    def get_fields(cls, ctx):
         """
         Should return a list of the form
         [
@@ -96,11 +100,10 @@ class Packet:
         ]
 
         If the fields need to change based on the
-        protocol version, self.proto should be
-        set before accessing this.
+        protocol version, use ctx.proto.
         """
 
-        raise NotImplementedError
+        return cls.fields
 
 # Classes used for inheritance to know where a packet is bound and what state it's used in
 class ServerboundPacket(Packet):
@@ -112,11 +115,11 @@ class ClientboundPacket(Packet):
 class HandshakingPacket(Packet):
     pass
 
-class PlayPacket(Packet):
-    pass
-
 class StatusPacket(Packet):
     pass
 
 class LoginPacket(Packet):
+    pass
+
+class PlayPacket(Packet):
     pass
