@@ -4,8 +4,10 @@ import time
 
 from . import enums
 from . import util
+from . import versions
 from .types import *
 from .packets import *
+from .yggdrasil import AuthenticationToken
 
 class Client:
     class Protocol(asyncio.Protocol):
@@ -40,12 +42,35 @@ class Client:
                     del self.buffer[:self.length]
                     self.length = 0
 
-    def __init__(self, address, port=25565):
+    def __init__(
+        self,
+        version,
+        address,
+        port = 25565,
+        *,
+        access_token = None,
+        client_token = None,
+        username = None,
+        password = None,
+    ):
+        if isinstance(version, int):
+            proto = version
+        else:
+            proto = versions.versions[version]
+
+        self.ctx = PacketContext(proto)
+
         self.address = address
         self.port = port
         self.transport = None
 
-        self.ctx = PacketContext()
+        self.auth_token = AuthenticationToken(
+            access_token = access_token,
+            client_token = client_token,
+            username = username,
+            password = password,
+        )
+
         self.current_state = enums.State.Handshaking
 
         self.closed = True
@@ -122,7 +147,7 @@ class Client:
             raise ValueError("Invalid state")
 
         await self.write_packet(serverbound.HandshakePacket(
-            proto_version = -1,
+            proto_version = self.ctx.proto,
             server_address = self.address,
             server_port = self.port,
             next_state = enums.State.Status,
@@ -139,6 +164,19 @@ class Client:
         self.close()
 
         return resp.response, int(time.time() * 1000) - pong.payload
+
+    async def login(self):
+        if self.current_state != enums.State.Handshaking:
+            raise ValueError("Invalid state")
+
+        await self.auth_token.ensure()
+
+        await self.write_packet(serverbound.HandshakePacket(
+            proto_version = self.ctx.proto,
+            server_address = self.address,
+            server_port = self.port,
+            next_state = enums.State.Login,
+        ))
 
     async def on_start(self):
         pass

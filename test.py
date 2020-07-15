@@ -11,5 +11,5 @@ class MyClient(dolor.Client):
         print(resp, ping)
 
 if __name__ == "__main__":
-    c = MyClient("avatarmc.com")
+    c = MyClient("1.15.2", "avatarmc.com")
     c.run()

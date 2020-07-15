@@ -20,14 +20,10 @@ class Packet:
 
             for attr_name, attr_type in self.enumerate_fields():
                 if issubclass(attr_type, BaseArray):
-                    if attr_type.len_attr is None:
-                        value = attr_type(buf.read())
-                    elif isinstance(attr_type.len_attr, int):
-                        value = attr_type(buf)
-                    elif attr_type.is_prefixed_by_type():
-                        value = attr_type(buf)
-                    else:
+                    if isinstance(attr_type.len_attr, str):
                         value = attr_type(buf, num_elems=getattr(self, attr_type.len_attr))
+                    else:
+                        value = attr_type(buf)
                 else:
                     value = attr_type(buf)
 
@@ -73,7 +69,7 @@ class Packet:
 
             # Set the appropriate length attribute for an array
             if isinstance(tmp, BaseArray):
-                if tmp.len_attr is not None and not isinstance(tmp.len_attr, int) and not tmp.is_prefixed_by_type():
+                if isinstance(tmp.len_attr, str):
                     tmp_len = getattr(self.raw, tmp.len_attr)
                     tmp_len.value = len(tmp.value) # Will also affect the type in ret
 

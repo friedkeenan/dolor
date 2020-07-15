@@ -179,6 +179,25 @@ def Array(elem_type, len_attr=None):
 class BaseRawByteArray(BaseArray):
     zero = bytearray()
 
+    # Override all of __init__ so that RawByteArrays
+    # behave the way you expect when prefixed by a type
+    def __init__(self, buf=None, num_elems=None):
+        if isinstance(self.len_attr, int):
+            self.num_elems = self.len_attr
+        else:
+            self.num_elems = num_elems
+
+        if buf is None:
+            # deepcopy because self.zero is mutable
+            self.value = copy.deepcopy(self.zero)
+        else:
+            if isinstance(buf, io.IOBase):
+                self.value = self.unpack(buf)
+            else:
+                self.value = bytearray(buf)
+
+        self.len_obj = None
+
     def unpack(self, buf):
         if self.is_prefixed_by_type():
             self.len_obj = self.len_attr(buf)
@@ -187,15 +206,19 @@ class BaseRawByteArray(BaseArray):
         return bytearray(buf.read(self.num_elems))
 
     def __bytes__(self):
-        ret = bytes(self.value)
+        if isinstance(self.len_attr, int):
+            return bytes(self.value[:self.len_attr])
 
+        ret = b""
         if self.is_prefixed_by_type():
             if self.len_obj is None:
                 self.len_obj = self.len_attr(len(self.value))
             else:
                 self.len_obj.value = len(self.value)
 
-            ret = bytes(self.len_obj) + ret
+            ret = bytes(self.len_obj)
+
+        ret += bytes(self.value)
 
         return ret
 
