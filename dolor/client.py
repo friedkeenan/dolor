@@ -1,10 +1,12 @@
 import asyncio
+import aiohttp
 import io
 import time
 
 from . import enums
 from . import util
 from . import versions
+from . import encryption
 from .types import *
 from .packets import *
 from .yggdrasil import AuthenticationToken
@@ -17,6 +19,8 @@ class Client:
             self.buffer = bytearray()
             self.length = 0
 
+            self.length_buf = b""
+
         def connection_made(self, transport):
             self.client.connection_made()
 
@@ -27,17 +31,29 @@ class Client:
             self.buffer.extend(data)
 
             while len(self.buffer) != 0 and len(self.buffer) >= self.length:
-                if self.length <= 0:
-                    try:
-                        self.length = VarInt(self.buffer)
-                    except:
-                        return
+                buf = io.BytesIO(self.buffer)
+                if self.client.decryptor is not None:
+                    buf = encryption.EncryptedFileObject(buf, self.client.decryptor, self.client.encryptor)
 
-                    del self.buffer[:len(self.length)]
-                    self.length = self.length.value
+                if self.length <= 0:
+                    # Sorta manually read length because we're not
+                    # guaranteed to have a full VarInt
+                    while True:
+                        tmp = buf.read(1)
+                        if len(tmp) < 1:
+                            return
+
+                        del self.buffer[:1]
+                        self.length_buf += tmp
+
+                        if tmp[0] & 0x80 == 0:
+                            self.length = VarInt(self.length_buf).value
+                            self.length_buf = b""
+
+                            break
 
                 if len(self.buffer) >= self.length:
-                    self.client.data_received(self.buffer[:self.length])
+                    self.client.data_received(buf.read(self.length))
 
                     del self.buffer[:self.length]
                     self.length = 0
@@ -62,7 +78,6 @@ class Client:
 
         self.address = address
         self.port = port
-        self.transport = None
 
         self.auth_token = AuthenticationToken(
             access_token = access_token,
@@ -74,6 +89,11 @@ class Client:
         self.current_state = enums.State.Handshaking
 
         self.closed = True
+
+        self.transport = None
+        self.read_queue = None
+        self.decryptor = None
+        self.encryptor = None
 
     def gen_packet_info(self, state=None):
         if state is None:
@@ -134,7 +154,11 @@ class Client:
         return await self.read_queue.get()
 
     async def write_packet(self, pack):
-        self.transport.write(bytes(pack))
+        data = bytes(pack)
+        if self.encryptor is not None:
+            data = self.encryptor.update(data)
+
+        self.transport.write(data)
 
     async def start(self):
         self.read_queue = asyncio.Queue()
@@ -177,6 +201,47 @@ class Client:
             server_port = self.port,
             next_state = enums.State.Login,
         ))
+
+        self.current_state = enums.State.Login
+
+        await self.write_packet(serverbound.LoginStartPacket(
+            name = self.auth_token.profile.name,
+        ))
+
+        enc_req = await self.read_packet()
+        if not isinstance(enc_req, clientbound.EncryptionRequestPacket):
+            raise ValueError("Invalid packet. Offline server?")
+
+        shared_secret = encryption.gen_shared_secret()
+        server_hash = encryption.gen_server_hash(enc_req.server_id, shared_secret, enc_req.pub_key)
+
+        async with aiohttp.ClientSession() as s:
+            async with s.post("https://sessionserver.mojang.com/session/minecraft/join",
+                data = json.dumps(
+                    {
+                        "accessToken": self.auth_token.access_token,
+                        "selectedProfile": self.auth_token.profile.id,
+                        "serverId": server_hash
+                    },
+                    separators = (",", ":"),
+                ),
+                headers = {"content-type": "application/json"},
+            ) as resp:
+                if resp.status != 204:
+                    raise ValueError("Invalid status code from session server")
+
+        enc_secret, enc_token = encryption.encrypt_secret_and_token(enc_req.pub_key, shared_secret, enc_req.verify_token)
+
+        await self.write_packet(serverbound.EncryptionResponsePacket(
+            shared_secret = enc_secret,
+            verify_token = enc_token,
+        ))
+
+        cipher = encryption.gen_cipher(shared_secret)
+        self.decryptor = cipher.decryptor()
+        self.encryptor = cipher.encryptor()
+
+        return await self.read_packet()
 
     async def on_start(self):
         pass

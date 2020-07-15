@@ -194,9 +194,18 @@ class BaseRawByteArray(BaseArray):
             if isinstance(buf, io.IOBase):
                 self.value = self.unpack(buf)
             else:
-                self.value = bytearray(buf)
+                self.value = buf
 
         self.len_obj = None
+
+    @property
+    def value(self):
+        return self._value
+
+    # So you can set the value to a bytes object
+    @value.setter
+    def value(self, value):
+        self._value = bytearray(value)
 
     def unpack(self, buf):
         if self.is_prefixed_by_type():
@@ -359,10 +368,10 @@ class String(Type):
 
     def unpack(self, buf):
         length = VarInt(buf).value
-        return buf.read(length).decode("utf8")
+        return buf.read(length).decode("utf-8")
 
     def __bytes__(self):
-        ret = self.value.encode("utf8")
+        ret = self.value.encode("utf-8")
         ret = bytes(VarInt(len(ret))) + ret
         return ret
 
@@ -401,7 +410,7 @@ class UUID(Type):
     zero = uuid.UUID(int=0)
 
     def unpack(self, buf):
-        return uuid.UUID(bytes=buf.read(16))
+        return uuid.UUID(bytes=buf.read(0x10))
 
     def __bytes__(self):
         return self.value.bytes

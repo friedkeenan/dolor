@@ -53,8 +53,8 @@ class AuthenticationToken:
         if self.username is not None:
             await self.authenticate()
         else:
-            if not await self.validate():
-                await self.refresh()
+            # Refresh even with valid tokens so we get the player name
+            await self.refresh()
 
     async def validate(self):
         data = {
@@ -124,4 +124,7 @@ class AuthenticationToken:
                 if resp.status != ok_status_code:
                     raise YggdrasilError(resp.status, await resp.json())
 
-                return await resp.json()
+                try:
+                    return await resp.json()
+                except aiohttp.ContentTypeError:
+                    return None
