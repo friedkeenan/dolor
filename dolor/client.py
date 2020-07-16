@@ -12,6 +12,24 @@ from .types import *
 from .packets import *
 from .yggdrasil import AuthenticationToken
 
+def packet_listener(checker):
+    """
+    A decorator for packet listeners
+    within a Client class.
+
+    checker is the same as in
+    Client.register_packet_listener.
+    """
+
+    def dec(func):
+        # Set the checker attribute to be later
+        # recognized and registered by the client
+        func.checker = checker
+
+        return func
+
+    return dec
+
 class Client:
     class Protocol(asyncio.Protocol):
         def __init__(self, client):
@@ -105,6 +123,14 @@ class Client:
         self.comp_threshold = 0
 
         self.packet_listeners = {}
+        for attr in dir(self):
+            tmp = getattr(self, attr)
+
+            # If the function was decorated with
+            # the packet_listener function, then
+            # it will have the checker attribute
+            if hasattr(tmp, "checker"):
+                self.register_packet_listener(tmp, tmp.checker)
 
     def gen_packet_info(self, state=None):
         if state is None:
@@ -176,11 +202,14 @@ class Client:
         """
         Registers a packet listener.
 
-        func is an async function and checker
+        func is a coroutine function and checker
         is either a packet class, a packet id,
         or a function that returns whether the
         listener should be called.
         """
+
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError("Packet listeners must be coroutine functions")
 
         real_checker = checker
         if isinstance(checker, type):
