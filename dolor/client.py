@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import io
+import zlib
 import time
 
 from . import enums
@@ -32,6 +33,9 @@ class Client:
 
             while len(self.buffer) != 0 and len(self.buffer) >= self.length:
                 buf = io.BytesIO(self.buffer)
+
+                # Perform decryption in the protocol because
+                # the length is also encrypted
                 if self.client.decryptor is not None:
                     buf = encryption.EncryptedFileObject(buf, self.client.decryptor, self.client.encryptor)
 
@@ -51,6 +55,9 @@ class Client:
                             self.length_buf = b""
 
                             break
+
+                        if len(self.length_buf) >= 5:
+                            raise ValueError("VarInt is too big")
 
                 if len(self.buffer) >= self.length:
                     self.client.data_received(buf.read(self.length))
@@ -95,6 +102,10 @@ class Client:
         self.decryptor = None
         self.encryptor = None
 
+        self.comp_threshold = 0
+
+        self.packet_listeners = {}
+
     def gen_packet_info(self, state=None):
         if state is None:
             state = self.current_state
@@ -135,8 +146,19 @@ class Client:
     def data_received(self, data):
         data = io.BytesIO(data)
 
+        if self.comp_threshold > 0:
+            data_len = VarInt(data).value
+            if data_len > 0:
+                if data_len < self.comp_threshold:
+                    self.close()
+                    raise ValueError("Invalid data length for a compressed packet")
+
+                data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+
         id = VarInt(data).value
-        pack_class = self.packet_info[id]
+        pack_class = self.packet_info.get(id)
+        if pack_class is None:
+            pack_class = GenericPacket(id)
 
         self.read_queue.put_nowait(pack_class(data, ctx=self.ctx))
 
@@ -150,11 +172,57 @@ class Client:
         self.transport.abort()
         self.close()
 
+    def register_packet_listener(self, func, checker):
+        """
+        Registers a packet listener.
+
+        func is an async function and checker
+        is either a packet class, a packet id,
+        or a function that returns whether the
+        listener should be called.
+        """
+
+        real_checker = checker
+        if isinstance(checker, type):
+            # Packet class
+            real_checker = lambda x: isinstance(x, checker)
+        elif isinstance(checker, int):
+            # Packet id
+            real_checker = lambda x: (x.get_id(self.ctx) == checker)
+
+        self.packet_listeners[func] = real_checker
+
+    def packet_listener(self, checker):
+        """
+        Decorator for packet listeners
+
+        checker is the same as in
+        register_packet_listener
+        """
+
+        def dec(func):
+            self.register_packet_listener(func, checker)
+
+            return func
+
+        return dec
+
     async def read_packet(self):
         return await self.read_queue.get()
 
     async def write_packet(self, pack):
         data = bytes(pack)
+
+        if self.comp_threshold > 0:
+            data_len = 0
+            if len(data) >= self.comp_threshold:
+                data_len = len(data)
+                data = zlib.compress(data)
+
+            data = bytes(VarInt(data_len)) + data
+
+        data = bytes(VarInt(len(data))) + data
+
         if self.encryptor is not None:
             data = self.encryptor.update(data)
 
@@ -189,6 +257,22 @@ class Client:
 
         return resp.response, int(time.time() * 1000) - pong.payload
 
+    async def send_server_hash(self, server_hash):
+        async with aiohttp.ClientSession() as s:
+            async with s.post("https://sessionserver.mojang.com/session/minecraft/join",
+                data = json.dumps(
+                    {
+                        "accessToken": self.auth_token.access_token,
+                        "selectedProfile": self.auth_token.profile.id,
+                        "serverId": server_hash
+                    },
+                    separators = (",", ":"),
+                ),
+                headers = {"content-type": "application/json"},
+            ) as resp:
+                if resp.status != 204:
+                    raise ValueError(f"Invalid status code from session server: {resp.status}")
+
     async def login(self):
         if self.current_state != enums.State.Handshaking:
             raise ValueError("Invalid state")
@@ -215,20 +299,7 @@ class Client:
         shared_secret = encryption.gen_shared_secret()
         server_hash = encryption.gen_server_hash(enc_req.server_id, shared_secret, enc_req.pub_key)
 
-        async with aiohttp.ClientSession() as s:
-            async with s.post("https://sessionserver.mojang.com/session/minecraft/join",
-                data = json.dumps(
-                    {
-                        "accessToken": self.auth_token.access_token,
-                        "selectedProfile": self.auth_token.profile.id,
-                        "serverId": server_hash
-                    },
-                    separators = (",", ":"),
-                ),
-                headers = {"content-type": "application/json"},
-            ) as resp:
-                if resp.status != 204:
-                    raise ValueError("Invalid status code from session server")
+        await self.send_server_hash(server_hash)
 
         enc_secret, enc_token = encryption.encrypt_secret_and_token(enc_req.pub_key, shared_secret, enc_req.verify_token)
 
@@ -241,10 +312,28 @@ class Client:
         self.decryptor = cipher.decryptor()
         self.encryptor = cipher.encryptor()
 
-        return await self.read_packet()
+        p = await self.read_packet()
+
+        if isinstance(p, clientbound.SetCompressionPacket):
+            self.comp_threshold = p.threshold
+
+            p = await self.read_packet()
+            if not isinstance(p, clientbound.LoginSuccessPacket):
+                raise ValueError("Invalid packet")
+        elif not isinstance(p, clientbound.LoginSuccessPacket):
+            raise ValueError("Invalid packet")
+
+        self.current_state = enums.State.Play
 
     async def on_start(self):
-        pass
+        await self.login()
+
+        while True:
+            p = await self.read_packet()
+
+            for func, checker in self.packet_listeners.items():
+                if checker(p):
+                    asyncio.create_task(func(p))
 
     def run(self):
         asyncio.run(self.start())

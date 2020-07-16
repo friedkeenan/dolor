@@ -3,14 +3,14 @@
 import dolor
 import config
 
-class MyClient(dolor.Client):
-    async def on_start(self):
-        print(await self.login())
+c = dolor.Client("1.15.2", "localhost",
+    username = config.username,
+    password = config.password,
+)
+
+@c.packet_listener(0x21)
+async def test(p):
+    print(p)
 
 if __name__ == "__main__":
-    c = MyClient("1.15.2", "localhost",
-        username = config.username,
-        password = config.password,
-    )
-
     c.run()

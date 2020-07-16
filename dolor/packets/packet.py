@@ -62,7 +62,12 @@ class Packet:
         return ret
 
     def __bytes__(self):
-        ret = VarInt(self.id)
+        """
+        Packs the id and the fields
+        into a bytes object
+        """
+
+        ret = VarInt(self.get_id(self.ctx))
 
         for attr_name, _ in self.enumerate_fields():
             tmp = getattr(self.raw, attr_name)
@@ -75,11 +80,7 @@ class Packet:
 
             ret += tmp
 
-        ret = bytes(ret)
-
-        ret = bytes(VarInt(len(ret))) + ret
-
-        return ret
+        return bytes(ret)
 
     def enumerate_fields(self):
         for field in self.get_fields(self.ctx):
@@ -110,6 +111,19 @@ class Packet:
         """
 
         return cls.fields
+
+class BaseGenericPacket(Packet):
+    fields = [{"data": RawByteArray()}]
+
+    def __repr__(self):
+        ret = f"{type(self).__name__}(id={self.id:#x}, "
+        ret += ", ".join(f"{field}={repr(getattr(self, field))}" for field,_ in self.enumerate_fields())
+        ret += ")"
+
+        return ret
+
+def GenericPacket(id):
+    return type("GenericPacket", (BaseGenericPacket,), {"id": id})
 
 # Classes used for inheritance to know where a packet is bound and what state it's used in
 class ServerboundPacket(Packet):
