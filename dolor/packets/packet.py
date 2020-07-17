@@ -56,7 +56,7 @@ class Packet:
 
     def __repr__(self):
         ret = f"{type(self).__name__}("
-        ret += ", ".join(f"{field}={repr(getattr(self, field))}" for field,_ in self.enumerate_fields())
+        ret += ", ".join(f"{field}={repr(getattr(self, field))}" for field, _ in self.enumerate_fields())
         ret += ")"
 
         return ret
@@ -83,9 +83,7 @@ class Packet:
         return bytes(ret)
 
     def enumerate_fields(self):
-        for field in self.get_fields(self.ctx):
-            items = tuple(field.items())
-            yield items[0][0], items[0][1]
+        return self.get_fields(self.ctx).items()
 
     @classmethod
     def get_id(cls, ctx):
@@ -101,10 +99,10 @@ class Packet:
     @classmethod
     def get_fields(cls, ctx):
         """
-        Should return a list of the form
-        [
-            {"attribute": Type}
-        ]
+        Should return a dict of the form
+        {
+            "attribute": Type
+        }
 
         If the fields need to change based on the
         protocol version, use ctx.proto.
@@ -113,14 +111,10 @@ class Packet:
         return cls.fields
 
 class BaseGenericPacket(Packet):
-    fields = [{"data": RawByteArray()}]
+    fields = {"data": RawByteArray()}
 
     def __repr__(self):
-        ret = f"{type(self).__name__}(id={self.id:#x}, "
-        ret += ", ".join(f"{field}={repr(getattr(self, field))}" for field,_ in self.enumerate_fields())
-        ret += ")"
-
-        return ret
+        return f"{type(self).__name__}(id={self.id:#x}, data={repr(self.data)})"
 
 def GenericPacket(id):
     return type("GenericPacket", (BaseGenericPacket,), {"id": id})

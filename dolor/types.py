@@ -423,7 +423,7 @@ class UUIDString(UUID):
         return bytes(String(str(self.value)))
 
 class Identifier(Type):
-    class RealIdentifier:
+    class Identifier:
         def __init__(self, id=None):
             if id is None:
                 self.namespace = None
@@ -444,12 +444,12 @@ class Identifier(Type):
             return f"{self.namespace}:{self.name}"
 
         def __repr__(self):
-            return f'Identifier("{self}")'
+            return f'{type(self).__name__}("{self}")'
 
-    zero = RealIdentifier()
+    zero = Identifier()
 
     def unpack(self, buf):
-        return self.RealIdentifier(String(buf).value)
+        return self.Identifier(String(buf).value)
 
     def __bytes__(self):
         return bytes(String(str(self.value)))

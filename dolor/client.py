@@ -221,7 +221,7 @@ class Client:
 
         self.packet_listeners[func] = real_checker
 
-    def packet_listener(self, checker):
+    def external_packet_listener(self, checker):
         """
         Decorator for packet listeners
 
@@ -357,7 +357,7 @@ class Client:
     async def on_start(self):
         await self.login()
 
-        while True:
+        while not self.closed:
             p = await self.read_packet()
 
             for func, checker in self.packet_listeners.items():
@@ -366,3 +366,11 @@ class Client:
 
     def run(self):
         asyncio.run(self.start())
+
+    # Default packet listeners
+
+    @packet_listener(clientbound.KeepAlivePacket)
+    async def _on_keep_alive(self, p):
+        await self.write_packet(serverbound.KeepAlivePacket(
+            id = p.id,
+        ))
