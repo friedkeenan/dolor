@@ -15,6 +15,10 @@ class MyClient(dolor.Client):
                 action = dolor.enums.Action.Respawn,
             ))
 
+    @packet_listener(clientbound.ChatMessagePacket)
+    async def on_message(self, p):
+        print(p.data.flatten())
+
 if __name__ == "__main__":
     c = MyClient("1.15.2", "localhost",
         username = config.username,

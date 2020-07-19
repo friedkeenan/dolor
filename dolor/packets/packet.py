@@ -88,10 +88,12 @@ class Packet:
     @classmethod
     def get_id(cls, ctx):
         """
-        Should return the packet ID.
+        Should return the packet ID,
+        or None if the packet should
+        not be recognized.
 
-        If the ID needs to change based on the
-        protocol version, use ctx.proto.
+        If the ID needs to change based on
+        the protocol version, use ctx.proto.
         """
 
         return cls.id

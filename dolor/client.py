@@ -97,7 +97,9 @@ class Client:
         if isinstance(version, int):
             proto = version
         else:
-            proto = versions.versions[version]
+            proto = versions.versions.get(version)
+            if proto is None:
+                raise ValueError("Unsupported Minecraft version! If you know what you're doing, use the raw protocol version instead.")
 
         self.ctx = PacketContext(proto)
 

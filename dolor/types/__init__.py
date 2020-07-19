@@ -4,7 +4,7 @@ import struct
 import math
 import uuid
 import json
-from . import util
+from .. import util
 
 class Type:
     zero = None
@@ -453,3 +453,5 @@ class Identifier(Type):
 
     def __bytes__(self):
         return bytes(String(str(self.value)))
+
+from .chat import *

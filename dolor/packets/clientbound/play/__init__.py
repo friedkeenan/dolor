@@ -9,14 +9,14 @@ class ChatMessagePacket(Base):
     id = 0x0F
 
     fields = {
-        "data":     Json, # TODO: Chat type
-        "position": Byte,
+        "data":     Chat,
+        "position": Enum(Byte, enums.ChatPosition),
     }
 
 class DisconnectPlayPacket(Base):
     id = 0x1B
 
-    fields = {"reason": Json} # TODO: Chat type
+    fields = {"reason": Chat}
 
 class KeepAlivePacket(Base):
     id = 0x21

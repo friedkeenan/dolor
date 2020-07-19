@@ -7,7 +7,7 @@ class Base(ClientboundPacket, LoginPacket):
 class DisconnectStatusPacket(Base):
     id = 0x00
 
-    fields = {"reason": Json} # TODO: Chat type
+    fields = {"reason": Chat}
 
 class EncryptionRequestPacket(Base):
     id = 0x01
