@@ -109,7 +109,7 @@ class Chat(Type):
             elif self.is_translate:
                 fmt = self.translate_fmt.get(self.translate)
                 if fmt is None:
-                    fmt = self.translate
+                    return self.translate
 
                 return fmt.format(*(x.flatten() for x in self.tr_with))
 
@@ -155,6 +155,9 @@ class Chat(Type):
                     ret["with"] = [x.to_dict() for x in self.tr_with]
 
             return ret
+
+        def __repr__(self):
+            return f"{type(self).__name__}({self.to_dict()})"
 
     def unpack(self, buf):
         return self.Chat(Json(buf).value)

@@ -9,7 +9,9 @@ from .. import util
 class Type:
     zero = None
 
-    def __init__(self, buf=None):
+    def __init__(self, buf=None, *, ctx=None):
+        self.ctx = ctx
+
         if buf is None:
             # deepcopy because self.zero could be mutable
             self.value = copy.deepcopy(self.zero)
@@ -29,6 +31,9 @@ class Type:
         """
         Should return the value that corresponds
         to the raw data in the buffer.
+
+        If the unpacking needs to change based on
+        the protocol version, use self.ctx.pro.
         """
 
         raise NotImplementedError
@@ -37,6 +42,9 @@ class Type:
         """
         Should return the bytes that corresponds
         to self.value.
+
+        If the unpacking needs to change based on
+        the protocol version, use self.ctx.pro.
         """
 
         raise NotImplementedError
@@ -131,7 +139,7 @@ class BaseArray(Type):
     elem_type = None
     len_attr = None
 
-    def __init__(self, buf=None, num_elems=None):
+    def __init__(self, buf=None, *, ctx=None, num_elems=None):
         if isinstance(self.len_attr, int):
             self.num_elems = self.len_attr
         else:
@@ -139,29 +147,32 @@ class BaseArray(Type):
 
         self.len_obj = None
 
-        super().__init__(buf)
+        super().__init__(buf, ctx=ctx)
 
     def unpack(self, buf):
         if self.is_prefixed_by_type():
-            self.len_obj = self.len_attr(buf)
+            self.len_obj = self.len_attr(buf, ctx=self.ctx)
             self.num_elems = self.len_obj.value
 
         if self.num_elems is not None:
-            return [self.elem_type(buf).value for x in range(self.num_elems)]
+            return [self.elem_type(buf, ctx=self.ctx).value for x in range(self.num_elems)]
 
         ret = []
         while True:
             try:
-                ret.append(self.elem_type(buf).value)
+                ret.append(self.elem_type(buf, ctx=self.ctx).value)
             except:
                 return ret
 
     def __bytes__(self):
-        ret =  b"".join(bytes(self.elem_type(x)) for x in self.value)
+        if isinstance(self.len_attr, int):
+            self.value = self.value[:self.len_attr]
+
+        ret =  b"".join(bytes(self.elem_type(x, ctx=self.ctx)) for x in self.value)
 
         if self.is_prefixed_by_type():
             if self.len_obj is None:
-                self.len_obj = self.len_attr(len(self.value))
+                self.len_obj = self.len_attr(len(self.value), ctx=self.ctx)
             else:
                 self.len_obj.value = len(self.value)
 
@@ -181,7 +192,9 @@ class BaseRawByteArray(BaseArray):
 
     # Override all of __init__ so that RawByteArrays
     # behave the way you expect when prefixed by a type
-    def __init__(self, buf=None, num_elems=None):
+    def __init__(self, buf=None, *, ctx=None, num_elems=None):
+        self.ctx = ctx
+
         if isinstance(self.len_attr, int):
             self.num_elems = self.len_attr
         else:
@@ -209,7 +222,7 @@ class BaseRawByteArray(BaseArray):
 
     def unpack(self, buf):
         if self.is_prefixed_by_type():
-            self.len_obj = self.len_attr(buf)
+            self.len_obj = self.len_attr(buf, ctx=self.ctx)
             self.num_elems = self.len_obj.value
 
         return bytearray(buf.read(self.num_elems))
@@ -221,7 +234,7 @@ class BaseRawByteArray(BaseArray):
         ret = b""
         if self.is_prefixed_by_type():
             if self.len_obj is None:
-                self.len_obj = self.len_attr(len(self.value))
+                self.len_obj = self.len_attr(len(self.value), ctx=self.ctx)
             else:
                 self.len_obj.value = len(self.value)
 
@@ -274,10 +287,10 @@ class BaseVector(Type):
     elem_type = None
 
     def unpack(self, buf):
-        return self.Vector(*([self.elem_type(buf).value] * 3))
+        return self.Vector(*([self.elem_type(buf, ctx=self.ctx).value] * 3))
 
     def __bytes__(self):
-        return b"".join(bytes(self.elem_type(x)) for x in self.value)
+        return b"".join(bytes(self.elem_type(x, ctx=self.ctx)) for x in self.value)
 
 def Vector(elem_type):
     return type(f"{elem_type.__name__}Vector", (BaseVector,), {"elem_type": elem_type})
@@ -287,10 +300,10 @@ class BaseEnum(Type):
     enum_type = None
 
     def unpack(self, buf):
-        return self.enum_type(self.elem_type(buf).value)
+        return self.enum_type(self.elem_type(buf, ctx=self.ctx).value)
 
     def __bytes__(self):
-        return bytes(self.elem_type(self.value.value))
+        return bytes(self.elem_type(self.value.value, ctx=self.ctx))
 
 def Enum(elem_type, enum_type):
     return type(f"{elem_type.__name__}Enum", (BaseEnum,), {
@@ -367,22 +380,23 @@ class String(Type):
     zero = ""
 
     def unpack(self, buf):
-        length = VarInt(buf).value
+        length = VarInt(buf, ctx=self.ctx).value
         return buf.read(length).decode("utf-8")
 
     def __bytes__(self):
         ret = self.value.encode("utf-8")
-        ret = bytes(VarInt(len(ret))) + ret
+        ret = bytes(VarInt(len(ret), ctx=self.ctx)) + ret
+
         return ret
 
 class Json(Type):
     zero = {}
 
     def unpack(self, buf):
-        return json.loads(String(buf).value)
+        return json.loads(String(buf, ctx=self.ctx).value)
 
     def __bytes__(self):
-        return bytes(String(json.dumps(self.value, separators=(",", ":"))))
+        return bytes(String(json.dumps(self.value, separators=(",", ":")), ctx=self.ctx))
 
 class Position(Type):
     zero = BaseVector.Vector()
@@ -417,10 +431,10 @@ class UUID(Type):
 
 class UUIDString(UUID):
     def unpack(self, buf):
-        return uuid.UUID(String(buf).value)
+        return uuid.UUID(String(buf, ctx=self.ctx).value)
 
     def __bytes__(self):
-        return bytes(String(str(self.value)))
+        return bytes(String(str(self.value), ctx=self.ctx))
 
 class Identifier(Type):
     class Identifier:
@@ -449,9 +463,9 @@ class Identifier(Type):
     zero = Identifier()
 
     def unpack(self, buf):
-        return self.Identifier(String(buf).value)
+        return self.Identifier(String(buf, ctx=self.ctx).value)
 
     def __bytes__(self):
-        return bytes(String(str(self.value)))
+        return bytes(String(str(self.value), ctx=self.ctx))
 
 from .chat import *

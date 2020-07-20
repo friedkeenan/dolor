@@ -21,16 +21,16 @@ class Packet:
             for attr_name, attr_type in self.enumerate_fields():
                 if issubclass(attr_type, BaseArray):
                     if isinstance(attr_type.len_attr, str):
-                        value = attr_type(buf, num_elems=getattr(self, attr_type.len_attr))
+                        value = attr_type(buf, ctx=self.ctx, num_elems=getattr(self, attr_type.len_attr))
                     else:
-                        value = attr_type(buf)
+                        value = attr_type(buf, ctx=self.ctx)
                 else:
-                    value = attr_type(buf)
+                    value = attr_type(buf, ctx=self.ctx)
 
                 setattr(self.raw, attr_name, value)
         else:
             for attr_name, attr_type in self.enumerate_fields():
-                setattr(self.raw, attr_name, attr_type())
+                setattr(self.raw, attr_name, attr_type(ctx=self.ctx))
 
         for attr, value in kwargs.items():
             setattr(self, attr, value)
@@ -49,7 +49,7 @@ class Packet:
 
         for attr_name, attr_type in self.enumerate_fields():
             if attr_name == attr:
-                setattr(self.raw, attr, attr_type(value))
+                setattr(self.raw, attr, attr_type(value, ctx=self.ctx))
                 break
         else:
             object.__setattr__(self, attr, value)
@@ -67,7 +67,7 @@ class Packet:
         into a bytes object
         """
 
-        ret = VarInt(self.get_id(self.ctx))
+        ret = VarInt(self.get_id(self.ctx), ctx=self.ctx)
 
         for attr_name, _ in self.enumerate_fields():
             tmp = getattr(self.raw, attr_name)

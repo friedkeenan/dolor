@@ -11,9 +11,13 @@ class MyClient(dolor.Client):
     async def respawn(self, p):
         print(p)
         if p.health <= 0:
-            await self.write_packet(serverbound.ClientStatusPacket(
+            await self.write_packet(serverbound.ClientStatusPacket,
                 action = dolor.enums.Action.Respawn,
-            ))
+            )
+
+            await self.write_packet(serverbound.ChatMessagePacket,
+                message = "Poop",
+            )
 
     @packet_listener(clientbound.ChatMessagePacket)
     async def on_message(self, p):
