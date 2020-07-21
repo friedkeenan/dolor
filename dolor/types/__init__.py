@@ -7,6 +7,8 @@ import json
 from .. import util
 
 class Type:
+    # The value that should be returned
+    # when __init__ is called with no arguments
     zero = None
 
     def __init__(self, buf=None, *, ctx=None):
@@ -134,13 +136,11 @@ class Double(SimpleType):
     fmt = "d"
 
 class BaseArray(Type):
-    zero = []
-
     elem_type = None
     len_attr = None
 
     def __init__(self, buf=None, *, ctx=None, num_elems=None):
-        if isinstance(self.len_attr, int):
+        if self.is_fixed_len():
             self.num_elems = self.len_attr
         else:
             self.num_elems = num_elems
@@ -165,7 +165,7 @@ class BaseArray(Type):
                 return ret
 
     def __bytes__(self):
-        if isinstance(self.len_attr, int):
+        if self.is_fixed_len():
             self.value = self.value[:self.len_attr]
 
         ret =  b"".join(bytes(self.elem_type(x, ctx=self.ctx)) for x in self.value)
@@ -184,18 +184,32 @@ class BaseArray(Type):
     def is_prefixed_by_type(cls):
         return isinstance(cls.len_attr, type) and issubclass(cls.len_attr, Type)
 
+    @classmethod
+    def is_fixed_len(cls):
+        return isinstance(cls.len_attr, int)
+
 def Array(elem_type, len_attr=None):
-    return type(f"{elem_type.__name__}Array", (BaseArray,), {"elem_type": elem_type, "len_attr": len_attr})
+    attrs = {
+        "elem_type": elem_type,
+        "len_attr":  len_attr,
+    }
+
+    if isinstance(len_attr, int):
+        # Context not passed, shouldn't be a problem
+        # for zero values but not the cleanest.
+        attrs["zero"] = [elem_type().value] * len_attr
+    else:
+        attrs["zero"] = []
+
+    return type(f"{elem_type.__name__}Array", (BaseArray,), attrs)
 
 class BaseRawByteArray(BaseArray):
-    zero = bytearray()
-
     # Override all of __init__ so that RawByteArrays
     # behave the way you expect when prefixed by a type
     def __init__(self, buf=None, *, ctx=None, num_elems=None):
         self.ctx = ctx
 
-        if isinstance(self.len_attr, int):
+        if self.is_fixed_len():
             self.num_elems = self.len_attr
         else:
             self.num_elems = num_elems
@@ -228,7 +242,7 @@ class BaseRawByteArray(BaseArray):
         return bytearray(buf.read(self.num_elems))
 
     def __bytes__(self):
-        if isinstance(self.len_attr, int):
+        if self.is_fixed_len():
             return bytes(self.value[:self.len_attr])
 
         ret = b""
@@ -245,7 +259,14 @@ class BaseRawByteArray(BaseArray):
         return ret
 
 def RawByteArray(len_attr=None):
-    return type("RawByteArray", (BaseRawByteArray,), {"len_attr": len_attr})
+    attrs = {"len_attr": len_attr}
+
+    if isinstance(len_attr, int):
+        attrs["zero"] = bytearray(len_attr)
+    else:
+        attrs["zero"] = bytearray()
+
+    return type("RawByteArray", (BaseRawByteArray,), attrs)
 
 class BaseVector(Type):
     class Vector:
@@ -310,6 +331,68 @@ def Enum(elem_type, enum_type):
         "zero":      tuple(enum_type.__members__.values())[0],
         "elem_type": elem_type,
         "enum_type": enum_type,
+    })
+
+class BaseCompound(Type):
+    class BaseValue:
+        def __init__(self, elems):
+            self.elems = elems
+
+        def __getattr__(self, attr):
+            if attr == "elems":
+                return object.__getattribute__(self, attr)
+
+            if attr not in self.elems:
+                raise AttributeError
+
+            return self.elems[attr]
+
+        def __setattr__(self, attr, value):
+            if attr == "elems":
+                object.__setattr__(self, attr, value)
+                return
+
+            if attr not in self.elems:
+                raise AttributeError
+
+            self.elems[attr] = value
+
+        def __repr__(self):
+            ret = f"{type(self).__name__}("
+            ret += ", ".join(f"{x}={repr(y)}" for x, y in self.elems.items())
+            ret += ")"
+
+            return ret
+
+    elems = None
+    value_type = None
+
+    def unpack(self, buf):
+        elem_values = {}
+
+        for attr, attr_type in self.elems.items():
+            elem_values[attr] = attr_type(buf, ctx=self.ctx).value
+
+        return self.value_type(elem_values)
+
+    def __bytes__(self):
+        ret = TypeSum()
+
+        for attr, attr_type in self.elems.items():
+            ret += attr_type(getattr(self.value, attr), ctx=self.ctx)
+
+        return bytes(ret)
+
+def Compound(name="Compound", **kwargs):
+    value_type = type(name, (BaseCompound.BaseValue,), {})
+
+    return type(name, (BaseCompound,), {
+        "elems":      kwargs,
+        "value_type": value_type,
+
+        # Context not passed, shouldn't be a problem
+        # for zero values but not the cleanest.
+        "zero": value_type({x: y().value for x, y in kwargs.items()}),
     })
 
 class VarInt(Type):

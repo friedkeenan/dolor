@@ -4,7 +4,7 @@ from ..packet import *
 class Base(ClientboundPacket, LoginPacket):
     pass
 
-class DisconnectStatusPacket(Base):
+class DisconnectLoginPacket(Base):
     id = 0x00
 
     fields = {"reason": Chat}

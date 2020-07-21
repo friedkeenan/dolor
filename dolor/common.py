@@ -31,8 +31,8 @@ class Protocol(asyncio.Protocol):
                 buf = encryption.EncryptedFileObject(buf, self.receiver.decryptor, self.receiver.encryptor)
 
             if self.length <= 0:
-                # Sorta manually read length because we're not
-                # guaranteed to have a full VarInt
+                # Sorta manually read length because we're
+                # not guaranteed to have a full VarInt
                 while True:
                     tmp = buf.read(1)
                     if len(tmp) < 1:

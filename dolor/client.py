@@ -120,7 +120,10 @@ class Client:
         self.closed = False
 
     def connection_lost(self, exc):
-        self.closed = True
+        self.close()
+
+        if exc is not None:
+            raise exc
 
     def data_received(self, data):
         data = io.BytesIO(data)
@@ -144,10 +147,11 @@ class Client:
     def close(self):
         """Closes the client's connection to the server."""
 
-        self.closed = True
-        if not self.transport.is_closing():
-            self.transport.write_eof()
-            self.transport.close()
+        if not self.closed:
+            self.closed = True
+            if not self.transport.is_closing():
+                self.transport.write_eof()
+                self.transport.close()
 
     def abort(self):
         """Aborts the client's connection to the server."""
@@ -201,7 +205,14 @@ class Client:
     async def read_packet(self):
         """Reads a packet from the server."""
 
-        return await self.read_queue.get()
+        async with self.read_lock:
+            while not self.closed:
+                try:
+                    return await asyncio.wait_for(self.read_queue.get(), 1)
+                except asyncio.TimeoutError:
+                    pass
+
+        return None
 
     async def write_packet(self, pack, **kwargs):
         """
@@ -239,6 +250,8 @@ class Client:
 
     async def start(self):
         self.read_queue = asyncio.Queue()
+        self.read_lock = asyncio.Lock()
+
         self.transport, _ = await asyncio.get_running_loop().create_connection(self.protocol_factory, self.address, self.port)
 
         await self.on_start()
@@ -339,13 +352,22 @@ class Client:
 
         while not self.closed:
             p = await self.read_packet()
+            if p is None:
+                continue
 
+            tasks = []
             for func, checker in self.packet_listeners.items():
                 if checker(p):
-                    asyncio.create_task(func(p))
+                    tasks.append(asyncio.create_task(func(p)))
+
+            # Will this slow down the client too much maybe?
+            await asyncio.gather(*tasks)
 
     def run(self):
-        asyncio.run(self.start())
+        try:
+            asyncio.run(self.start())
+        except KeyboardInterrupt:
+            pass
 
     # Default packet listeners
 
@@ -354,3 +376,7 @@ class Client:
         await self.write_packet(serverbound.KeepAlivePacket,
             id = p.id,
         )
+
+    @packet_listener(clientbound.DisconnectPlayPacket)
+    async def _on_disconnect(self, p):
+        print("Disconnected:", p.reason.flatten())
