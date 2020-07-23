@@ -126,23 +126,7 @@ class Client:
             raise exc
 
     def data_received(self, data):
-        data = io.BytesIO(data)
-
-        if self.comp_threshold > 0:
-            data_len = VarInt(data, ctx=self.ctx).value
-            if data_len > 0:
-                if data_len < self.comp_threshold:
-                    self.close()
-                    raise ValueError("Invalid data length for a compressed packet")
-
-                data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
-
-        id = VarInt(data, ctx=self.ctx).value
-        pack_class = self.packet_info.get(id)
-        if pack_class is None:
-            pack_class = GenericPacket(id)
-
-        self.read_queue.put_nowait(pack_class(data, ctx=self.ctx))
+        self.read_queue.put_nowait(data)
 
     def close(self):
         """Closes the client's connection to the server."""
@@ -203,14 +187,36 @@ class Client:
         return dec
 
     async def read_packet(self):
-        """Reads a packet from the server."""
+        """
+        Reads a packet from the server.
 
-        async with self.read_lock:
-            while not self.closed:
-                try:
-                    return await asyncio.wait_for(self.read_queue.get(), 1)
-                except asyncio.TimeoutError:
-                    pass
+        Will return None if the connection
+        gets closed, otherwise it will only
+        return once it receives a packet.
+        """
+
+        while not self.closed:
+            try:
+                data = await asyncio.wait_for(self.read_queue.get(), 1)
+                data = io.BytesIO(data)
+
+                if self.comp_threshold > 0:
+                    data_len = VarInt(data, ctx=self.ctx).value
+                    if data_len > 0:
+                        if data_len < self.comp_threshold:
+                            self.close()
+                            raise ValueError("Invalid data length for a compressed packet")
+
+                        data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+
+                id = VarInt(data, ctx=self.ctx).value
+                pack_class = self.packet_info.get(id)
+                if pack_class is None:
+                    pack_class = GenericPacket(id)
+
+                return pack_class(data, ctx=self.ctx)
+            except asyncio.TimeoutError:
+                pass
 
         return None
 
@@ -250,7 +256,6 @@ class Client:
 
     async def start(self):
         self.read_queue = asyncio.Queue()
-        self.read_lock = asyncio.Lock()
 
         self.transport, _ = await asyncio.get_running_loop().create_connection(self.protocol_factory, self.address, self.port)
 
@@ -316,37 +321,6 @@ class Client:
             name = self.auth_token.profile.name,
         )
 
-        enc_req = await self.read_packet()
-        if not isinstance(enc_req, clientbound.EncryptionRequestPacket):
-            raise TypeError("Invalid packet. Offline server?")
-
-        shared_secret = encryption.gen_shared_secret()
-        server_hash = encryption.gen_server_hash(enc_req.server_id, shared_secret, enc_req.pub_key)
-
-        await self.send_server_hash(server_hash)
-
-        enc_secret, enc_token = encryption.encrypt_secret_and_token(enc_req.pub_key, shared_secret, enc_req.verify_token)
-
-        await self.write_packet(serverbound.EncryptionResponsePacket,
-            shared_secret = enc_secret,
-            verify_token = enc_token,
-        )
-
-        cipher = encryption.gen_cipher(shared_secret)
-        self.decryptor = cipher.decryptor()
-        self.encryptor = cipher.encryptor()
-
-        while not self.closed:
-            p = await self.read_packet()
-
-            if isinstance(p, clientbound.SetCompressionPacket):
-                self.comp_threshold = p.threshold
-            elif isinstance(p, clientbound.LoginSuccessPacket):
-                self.current_state = enums.State.Play
-                return
-            else:
-                raise TypeError(f"Invalid packet: {repr(p)}")
-
     async def on_start(self):
         await self.login()
 
@@ -371,12 +345,38 @@ class Client:
 
     # Default packet listeners
 
+    @packet_listener(lambda x: isinstance(x, clientbound.DisconnectLoginPacket) or isinstance(x, clientbound.DisconnectPlayPacket))
+    async def _on_disconnect(self, p):
+        print("Disconnected:", p.reason.flatten())
+
+    @packet_listener(clientbound.EncryptionRequestPacket)
+    async def _on_encryption_request(self, p):
+        shared_secret = encryption.gen_shared_secret()
+        server_hash = encryption.gen_server_hash(p.server_id, shared_secret, p.pub_key)
+
+        await self.send_server_hash(server_hash)
+
+        enc_secret, enc_token = encryption.encrypt_secret_and_token(p.pub_key, shared_secret, p.verify_token)
+
+        await self.write_packet(serverbound.EncryptionResponsePacket,
+            shared_secret = enc_secret,
+            verify_token = enc_token,
+        )
+
+        cipher = encryption.gen_cipher(shared_secret)
+        self.decryptor = cipher.decryptor()
+        self.encryptor = cipher.encryptor()
+
+    @packet_listener(clientbound.SetCompressionPacket)
+    async def _on_set_compression(self, p):
+        self.comp_threshold = p.threshold
+
+    @packet_listener(clientbound.LoginSuccessPacket)
+    async def _on_login_success(self, p):
+        self.current_state = enums.State.Play
+
     @packet_listener(clientbound.KeepAlivePacket)
     async def _on_keep_alive(self, p):
         await self.write_packet(serverbound.KeepAlivePacket,
             id = p.id,
         )
-
-    @packet_listener(clientbound.DisconnectPlayPacket)
-    async def _on_disconnect(self, p):
-        print("Disconnected:", p.reason.flatten())
