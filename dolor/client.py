@@ -3,6 +3,7 @@ import aiohttp
 import io
 import zlib
 import time
+import copy
 
 from . import enums
 from . import util
@@ -13,19 +14,19 @@ from .types import *
 from .packets import *
 from .yggdrasil import AuthenticationToken
 
-def packet_listener(checker):
+def packet_listener(*checkers):
     """
     A decorator for packet listeners
     within a Client class.
 
-    checker is the same as in
+    checkers is the same as in
     Client.register_packet_listener.
     """
 
     def dec(func):
-        # Set the checker attribute to be later
+        # Set the checkers attribute to be later
         # recognized and registered by the client
-        func.checker = checker
+        func.checkers = checkers
 
         return func
 
@@ -81,9 +82,9 @@ class Client:
 
             # If the function was decorated with
             # the packet_listener function, then
-            # it will have the checker attribute
-            if hasattr(tmp, "checker"):
-                self.register_packet_listener(tmp, tmp.checker)
+            # it will have the checkers attribute
+            if hasattr(tmp, "checkers"):
+                self.register_packet_listener(tmp, *tmp.checkers)
 
     def gen_packet_info(self, state=None):
         if state is None:
@@ -143,26 +144,41 @@ class Client:
         self.transport.abort()
         self.close()
 
-    def register_packet_listener(self, func, checker):
+    def to_real_packet_checker(self, checker):
+        if isinstance(checker, type):
+            # Packet class
+            return lambda x: isinstance(x, checker)
+        elif isinstance(checker, int):
+            # Packet id
+            return lambda x: (x.get_id(self.ctx) == checker)
+
+        return checker
+
+    def register_packet_listener(self, func, *checkers):
         """
         Registers a packet listener.
 
-        func is a coroutine function and checker
-        is either a packet class, a packet id,
-        or a function that returns whether the
-        listener should be called.
+        func is a coroutine function and each
+        checker is either a packet class, a packet
+        id, or a function that returns whether
+        the listener should be called.
         """
 
         if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Packet listener {func.__name__} isn't a coroutine function")
 
-        real_checker = checker
-        if isinstance(checker, type):
-            # Packet class
-            real_checker = lambda x: isinstance(x, checker)
-        elif isinstance(checker, int):
-            # Packet id
-            real_checker = lambda x: (x.get_id(self.ctx) == checker)
+        real_checker = None
+        for c in checkers:
+            real_c = self.to_real_packet_checker(c)
+
+            if real_checker is not None:
+                # deepcopy to avoid mutable wackiness
+                tmp_old = copy.deepcopy(real_checker)
+                tmp_add = copy.deepcopy(real_c)
+
+                real_checker = lambda x: (tmp_old(x) or tmp_add(x))
+            else:
+                real_checker = real_c
 
         self.packet_listeners[func] = real_checker
 
@@ -171,16 +187,16 @@ class Client:
 
         self.packet_listeners.pop(func)
 
-    def external_packet_listener(self, checker):
+    def external_packet_listener(self, *checkers):
         """
         Decorator for packet listeners
 
-        checker is the same as in
+        checkers is the same as in
         register_packet_listener
         """
 
         def dec(func):
-            self.register_packet_listener(func, checker)
+            self.register_packet_listener(func, *checkers)
 
             return func
 
@@ -345,7 +361,7 @@ class Client:
 
     # Default packet listeners
 
-    @packet_listener(lambda x: isinstance(x, clientbound.DisconnectLoginPacket) or isinstance(x, clientbound.DisconnectPlayPacket))
+    @packet_listener(clientbound.DisconnectLoginPacket, clientbound.DisconnectPlayPacket)
     async def _on_disconnect(self, p):
         print("Disconnected:", p.reason.flatten())
 
