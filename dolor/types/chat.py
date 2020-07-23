@@ -1,10 +1,27 @@
+import json
+import re
+
 from . import Type, Json
 
 class Chat(Type):
     class Chat:
-        translate_fmt = {
-            "chat.type.text": "<{}> {}",
-        }
+        pos_pattern = re.compile(r"%(\d)\$[sd]")
+        general_pattern = re.compile(r"%[sd]")
+        translate_fmt = {}
+
+        @classmethod
+        def load_translations(cls, file):
+            if isinstance(file, str):
+                with open(file) as f:
+                    cls.translate_fmt = json.load(f)
+            else:
+                cls.translate_fmt = json.load(file)
+
+            for key, value in cls.translate_fmt.items():
+                value = re.sub(cls.pos_pattern, lambda x: "{" + str(int(x.groups()[0]) - 1) + "}", value)
+                value = re.sub(cls.general_pattern, r"{}", value)
+
+                cls.translate_fmt[key] = value
 
         def __init__(self, raw, parent=None):
             self.parent = parent

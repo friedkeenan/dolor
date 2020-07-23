@@ -27,6 +27,7 @@ if __name__ == "__main__":
     c = MyClient("1.15.2", "localhost",
         username = config.username,
         password = config.password,
+        lang_file = "en_us.json"
     )
 
     c.run()

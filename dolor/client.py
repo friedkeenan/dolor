@@ -45,6 +45,7 @@ class Client:
         client_token = None,
         username = None,
         password = None,
+        lang_file = None,
     ):
         if isinstance(version, int):
             proto = version
@@ -64,6 +65,9 @@ class Client:
             username = username,
             password = password,
         )
+
+        if lang_file is not None:
+            Chat.Chat.load_translations(lang_file)
 
         self.current_state = enums.State.Handshaking
 
