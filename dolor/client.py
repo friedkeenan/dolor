@@ -7,30 +7,12 @@ import copy
 
 from . import enums
 from . import util
-from . import versions
 from . import encryption
 from . import common
 from .types import *
 from .packets import *
 from .yggdrasil import AuthenticationToken
-
-def packet_listener(*checkers):
-    """
-    A decorator for packet listeners
-    within a Client class.
-
-    checkers is the same as in
-    Client.register_packet_listener.
-    """
-
-    def dec(func):
-        # Set the checkers attribute to be later
-        # recognized and registered by the client
-        func.checkers = checkers
-
-        return func
-
-    return dec
+from .common import packet_listener
 
 class Client:
     session_server = "https://sessionserver.mojang.com/session/minecraft"
@@ -50,7 +32,7 @@ class Client:
         if isinstance(version, int):
             proto = version
         else:
-            proto = versions.versions.get(version)
+            proto = common.versions.get(version)
             if proto is None:
                 raise ValueError("Unsupported Minecraft version! If you know what you're doing, use the raw protocol version instead.")
 
@@ -309,14 +291,11 @@ class Client:
     async def send_server_hash(self, server_hash):
         async with aiohttp.ClientSession() as s:
             async with s.post(f"{self.session_server}/join",
-                data = json.dumps(
-                    {
-                        "accessToken": self.auth_token.access_token,
-                        "selectedProfile": self.auth_token.profile.id,
-                        "serverId": server_hash,
-                    },
-                    separators = (",", ":"),
-                ),
+                json = {
+                    "accessToken": self.auth_token.access_token,
+                    "selectedProfile": self.auth_token.profile.id,
+                    "serverId": server_hash,
+                },
                 headers = {"content-type": "application/json"},
             ) as resp:
                 if resp.status != 204:
@@ -347,12 +326,12 @@ class Client:
         while not self.closed:
             p = await self.read_packet()
             if p is None:
-                continue
+                break
 
             tasks = []
             for func, checker in self.packet_listeners.items():
                 if checker(p):
-                    tasks.append(asyncio.create_task(func(p)))
+                    tasks.append(func(p))
 
             # Will this slow down the client too much maybe?
             await asyncio.gather(*tasks)

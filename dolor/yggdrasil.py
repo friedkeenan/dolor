@@ -1,5 +1,4 @@
 import aiohttp
-import json
 import uuid
 
 class YggdrasilError(Exception):
@@ -118,7 +117,7 @@ class AuthenticationToken:
     async def make_request(self, endpoint, data, ok_status_code=200):
         async with aiohttp.ClientSession() as s:
             async with s.post(f"{self.auth_server}/{endpoint}",
-                data = json.dumps(data, separators=(",", ":")),
+                json = data,
                 headers = self.headers,
             ) as resp:
                 if resp.status != ok_status_code:

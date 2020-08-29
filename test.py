@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import dolor
-from dolor.client import packet_listener
+from dolor import packet_listener
 from dolor.packets import *
 
 import config
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     c = MyClient("1.15.2", "localhost",
         username = config.username,
         password = config.password,
-        lang_file = "en_us.json"
+        lang_file = "en_us.json",
     )
 
     c.run()

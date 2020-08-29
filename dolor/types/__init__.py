@@ -130,9 +130,11 @@ class Long(SimpleType):
     fmt = "q"
 
 class Float(SimpleType):
+    zero = 0.0
     fmt = "f"
 
 class Double(SimpleType):
+    zero = 0.0
     fmt = "d"
 
 class BaseArray(Type):

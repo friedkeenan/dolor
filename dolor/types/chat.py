@@ -121,14 +121,19 @@ class Chat(Type):
             return self.translate is not None
 
         def flatten(self):
+            base = ""
+
             if self.is_string:
-                return self.text + "".join(x.flatten() for x in self.extra)
+                base = self.text
             elif self.is_translate:
                 fmt = self.translate_fmt.get(self.translate)
-                if fmt is None:
-                    return self.translate
 
-                return fmt.format(*(x.flatten() for x in self.tr_with))
+                if fmt is None:
+                    base = self.translate
+                else:
+                    base = fmt.format(*(x.flatten() for x in self.tr_with))
+
+            return base + "".join(x.flatten() for x in self.extra)
 
         def to_dict(self):
             ret = {}

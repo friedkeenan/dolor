@@ -4,6 +4,10 @@ import io
 from . import encryption
 from .types import *
 
+versions = {
+    "1.15.2": 578,
+}
+
 class Protocol(asyncio.Protocol):
     def __init__(self, receiver):
         self.receiver = receiver
@@ -55,3 +59,21 @@ class Protocol(asyncio.Protocol):
 
                 del self.buffer[:self.length]
                 self.length = 0
+
+def packet_listener(*checkers):
+    """
+    A decorator for packet
+    listeners within a class.
+
+    checkers is the same as in
+    Client.register_packet_listener.
+    """
+
+    def dec(func):
+        # Set the checkers attribute to be later
+        # recognized and registered by the class
+        func.checkers = checkers
+
+        return func
+
+    return dec
