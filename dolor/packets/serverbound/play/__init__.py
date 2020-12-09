@@ -8,14 +8,14 @@ class Base(ServerboundPacket, PlayPacket):
 class ChatMessagePacket(Base):
     id = 0x03
 
-    fields = {"message": String}
-
-class KeepAlivePacket(Base):
-    id = 0x0F
-
-    fields = {"id": Long}
+    message: String
 
 class ClientStatusPacket(Base):
     id = 0x04
 
-    fields = {"action": Enum(VarInt, enums.Action)}
+    action: Enum(VarInt, enums.Action)
+
+class KeepAlivePacket(Base):
+    id = 0x10
+
+    keep_alive_id: Long

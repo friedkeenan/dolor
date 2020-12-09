@@ -1,51 +1,40 @@
 import asyncio
 import aiohttp
-import io
-import zlib
 import time
-import copy
+import zlib
+import io
 
 from . import enums
 from . import util
 from . import encryption
 from . import common
-from .types import *
-from .packets import *
-from .yggdrasil import AuthenticationToken
 from .common import packet_listener
+from .versions import Version
+from .types import VarInt, Chat
+from .packets import PacketContext, ClientboundPacket, GenericPacket, serverbound, clientbound
+from .yggdrasil import AuthenticationToken
 
 class Client:
     session_server = "https://sessionserver.mojang.com/session/minecraft"
 
-    def __init__(
-        self,
-        version,
-        address,
-        port = 25565,
-        *,
+    def __init__(self, version, address, port=25565, *,
         access_token = None,
         client_token = None,
-        username = None,
-        password = None,
-        lang_file = None,
+        username     = None,
+        password     = None,
+        lang_file    = None,
     ):
-        if isinstance(version, int):
-            proto = version
-        else:
-            proto = common.versions.get(version)
-            if proto is None:
-                raise ValueError("Unsupported Minecraft version! If you know what you're doing, use the raw protocol version instead.")
-
-        self.ctx = PacketContext(proto)
+        version  = Version(version, check_supported=True)
+        self.ctx = PacketContext(version)
 
         self.address = address
-        self.port = port
+        self.port    = port
 
         self.auth_token = AuthenticationToken(
             access_token = access_token,
             client_token = client_token,
-            username = username,
-            password = password,
+            username     = username,
+            password     = password,
         )
 
         if lang_file is not None:
@@ -53,14 +42,15 @@ class Client:
 
         self.current_state = enums.State.Handshaking
 
-        self.closed = True
-
-        self.transport = None
+        self.closed     = True
+        self.transport  = None
         self.read_queue = None
-        self.decryptor = None
-        self.encryptor = None
+        self.decryptor  = None
+        self.encryptor  = None
 
         self.comp_threshold = 0
+
+        self.should_listen_sequentially = False
 
         self.packet_listeners = {}
         for attr in dir(self):
@@ -68,42 +58,40 @@ class Client:
 
             # If the function was decorated with
             # the packet_listener function, then
-            # it will have the checkers attribute
-            if hasattr(tmp, "checkers"):
-                self.register_packet_listener(tmp, *tmp.checkers)
+            # it will have the _checkers attribute
+            if hasattr(tmp, "_checkers"):
+                self.register_packet_listener(tmp, *tmp._checkers)
 
-    def gen_packet_info(self, state=None):
-        if state is None:
-            state = self.current_state
+    @property
+    def ctx(self):
+        return self._ctx
 
-        state = {
-            enums.State.Handshaking: HandshakingPacket,
-            enums.State.Status:      StatusPacket,
-            enums.State.Login:       LoginPacket,
-            enums.State.Play:        PlayPacket,
-        }[state]
+    @ctx.setter
+    def ctx(self, value):
+        self._ctx = value
 
-        ret = {}
-        for c in util.get_subclasses(state) & util.get_subclasses(ClientboundPacket):
-            id = c.get_id(self.ctx)
-            if id is not None:
-                ret[id] = c
-
-        return ret
+        try:
+            self.packet_info = common.gen_packet_info(self.current_state, ClientboundPacket, ctx=value)
+        except AttributeError:
+            pass
 
     @property
     def current_state(self):
         return self._current_state
 
     @current_state.setter
-    def current_state(self, state):
-        self._current_state = state
-        self.packet_info = self.gen_packet_info()
+    def current_state(self, value):
+        self._current_state = value
+
+        try:
+            self.packet_info = common.gen_packet_info(value, ClientboundPacket, ctx=self.ctx)
+        except AttributeError:
+            pass
 
     def protocol_factory(self):
-        return common.Protocol(self)
+        return common.ClientServerProtocol(self)
 
-    def connection_made(self):
+    def connection_made(self, transport):
         self.closed = False
 
     def connection_lost(self, exc):
@@ -116,17 +104,14 @@ class Client:
         self.read_queue.put_nowait(data)
 
     def close(self):
-        """Closes the client's connection to the server."""
-
         if not self.closed:
             self.closed = True
+
             if not self.transport.is_closing():
                 self.transport.write_eof()
                 self.transport.close()
 
     def abort(self):
-        """Aborts the client's connection to the server."""
-
         self.transport.abort()
         self.close()
 
@@ -136,9 +121,12 @@ class Client:
             return lambda x: isinstance(x, checker)
         elif isinstance(checker, int):
             # Packet id
-            return lambda x: (x.get_id(self.ctx) == checker)
+            return lambda x: (x.get_id(ctx=self.ctx) == checker)
 
         return checker
+
+    def join_checkers(self, first, second):
+        return lambda x: (first(x) or second(x))
 
     def register_packet_listener(self, func, *checkers):
         """
@@ -157,14 +145,10 @@ class Client:
         for c in checkers:
             real_c = self.to_real_packet_checker(c)
 
-            if real_checker is not None:
-                # deepcopy to avoid mutable wackiness
-                tmp_old = copy.deepcopy(real_checker)
-                tmp_add = copy.deepcopy(real_c)
-
-                real_checker = lambda x: (tmp_old(x) or tmp_add(x))
-            else:
+            if real_checker is None:
                 real_checker = real_c
+            else:
+                real_checker = self.join_checkers(real_checker, real_c)
 
         self.packet_listeners[func] = real_checker
 
@@ -174,12 +158,7 @@ class Client:
         self.packet_listeners.pop(func)
 
     def external_packet_listener(self, *checkers):
-        """
-        Decorator for packet listeners
-
-        checkers is the same as in
-        register_packet_listener
-        """
+        """Decorator for external packet listeners."""
 
         def dec(func):
             self.register_packet_listener(func, *checkers)
@@ -188,73 +167,107 @@ class Client:
 
         return dec
 
-    async def read_packet(self):
+    async def read_packet(self, *, timeout=None):
         """
         Reads a packet from the server.
 
-        Will return None if the connection
-        gets closed, otherwise it will only
-        return once it receives a packet.
+        If timeout is None, it will return
+        None if the connection gets closed,
+        otherwise it will only return once
+        it receives a packet.
+
+        Otherwise, it will try to return
+        the packet before it times out no
+        matter what.
         """
 
         while not self.closed:
-            try:
-                data = await asyncio.wait_for(self.read_queue.get(), 1)
-                data = io.BytesIO(data)
+            if timeout is not None:
+                data = await asynio.wait_for(self.read_queue.get(), timeout)
+            else:
+                try:
+                    data = await asyncio.wait_for(self.read_queue.get(), 1)
+                except asyncio.TimeoutError:
+                    continue
 
-                if self.comp_threshold > 0:
-                    data_len = VarInt(data, ctx=self.ctx).value
-                    if data_len > 0:
-                        if data_len < self.comp_threshold:
-                            self.close()
-                            raise ValueError("Invalid data length for a compressed packet")
+            data = io.BytesIO(data)
 
-                        data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+            if self.comp_threshold > 0:
+                data_len = VarInt.unpack(data, ctx=self.ctx)
 
-                id = VarInt(data, ctx=self.ctx).value
-                pack_class = self.packet_info.get(id)
-                if pack_class is None:
-                    pack_class = GenericPacket(id)
+                if data_len > 0:
+                    if data_len < self.comp_threshold:
+                        self.close()
 
-                return pack_class(data, ctx=self.ctx)
-            except asyncio.TimeoutError:
-                pass
+                        raise ValueError(f"Invalid data length ({data_len}) for compression threshold ({self.comp_threshold})")
+
+                    data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+
+            id         = VarInt.unpack(data, ctx=self.ctx)
+            pack_class = self.packet_info.get(id)
+
+            if pack_class is None:
+                pack_class = GenericPacket(id)
+
+            return pack_class.unpack(data, ctx=self.ctx)
 
         return None
 
-    async def write_packet(self, pack, **kwargs):
+    async def write_packet(self, packet, **kwargs):
         """
         Writes a packet to the server.
 
-        pack can be either a Packet object,
+        packet can be either a Packet object,
         or it can be a Packet class, and then
         the sent packet will be made using that
         class and the keyword arguments.
 
-        pack being a Packet class is preferred
+        packet being a Packet class is preferred
         because then the context will be correctly
         passed to the sent packet.
         """
 
-        if isinstance(pack, type):
-            pack = pack(ctx=self.ctx, **kwargs)
+        if isinstance(packet, type):
+            packet = packet(ctx=self.ctx, **kwargs)
 
-        data = bytes(pack)
+        data = packet.pack(ctx=self.ctx)
 
         if self.comp_threshold > 0:
             data_len = 0
-            if len(data) >= self.comp_threshold:
+
+            if len(data) > self.comp_threshold:
                 data_len = len(data)
-                data = zlib.compress(data)
+                data     = zlib.compress(data)
 
-            data = bytes(VarInt(data_len, ctx=self.ctx)) + data
+            data = VarInt.pack(data_len, ctx=self.ctx) + data
 
-        data = bytes(VarInt(len(data), ctx=self.ctx)) + data
+        data = VarInt.pack(len(data), ctx=self.ctx) + data
 
         if self.encryptor is not None:
             data = self.encryptor.update(data)
 
         self.transport.write(data)
+
+    def default_packet(self, pack_class):
+        """
+        Utility method for getting the default
+        of a packet with the correct context.
+        """
+
+        return pack_class(ctx=self.ctx)
+
+    async def send_server_hash(self, server_hash):
+        async with aiohttp.ClientSession() as s:
+            async with s.post(f"{self.session_server}/join",
+                json = {
+                    "accessToken":     self.auth_token.access_token,
+                    "selectedProfile": self.auth_token.profile.id,
+                    "serverId":        server_hash,
+                },
+                headers = {"content-type": "application/json"},
+            ) as resp:
+                if resp.status != 204:
+                    raise ValueError(f"Invalid status code from session server: {resp.status}")
 
     async def start(self):
         self.read_queue = asyncio.Queue()
@@ -263,15 +276,32 @@ class Client:
 
         await self.on_start()
 
+    async def listen(self):
+        while not self.closed:
+            p = await self.read_packet()
+            if p is None:
+                return
+
+            tasks = []
+            for func, checker in self.packet_listeners.items():
+                if checker(p):
+                    if self.should_listen_sequentially:
+                        tasks.append(func(p))
+                    else:
+                        asyncio.create_task(func(p))
+
+            if self.should_listen_sequentially:
+                await asyncio.gather(*tasks)
+
     async def status(self):
         if self.current_state != enums.State.Handshaking:
-            raise ValueError("Invalid state")
+            raise ValueError(f"Invalid state: {self.current_state}")
 
         await self.write_packet(serverbound.HandshakePacket,
-            proto_version = self.ctx.proto,
+            proto_version  = self.ctx.version.proto,
             server_address = self.address,
-            server_port = self.port,
-            next_state = enums.State.Status,
+            server_port    = self.port,
+            next_state     = enums.State.Status,
         )
 
         self.current_state = enums.State.Status
@@ -288,27 +318,16 @@ class Client:
 
         return resp.response, int(time.time() * 1000) - pong.payload
 
-    async def send_server_hash(self, server_hash):
-        async with aiohttp.ClientSession() as s:
-            async with s.post(f"{self.session_server}/join",
-                json = {
-                    "accessToken": self.auth_token.access_token,
-                    "selectedProfile": self.auth_token.profile.id,
-                    "serverId": server_hash,
-                },
-                headers = {"content-type": "application/json"},
-            ) as resp:
-                if resp.status != 204:
-                    raise ValueError(f"Invalid status code from session server: {resp.status}")
-
     async def login(self):
         if self.current_state != enums.State.Handshaking:
-            raise ValueError("Invalid state")
+            raise ValueError(f"Invalid state: {self.current_state}")
 
         await self.auth_token.ensure()
 
+        self.should_listen_sequentially = True
+
         await self.write_packet(serverbound.HandshakePacket,
-            proto_version = self.ctx.proto,
+            proto_version = self.ctx.version.proto,
             server_address = self.address,
             server_port = self.port,
             next_state = enums.State.Login,
@@ -320,21 +339,10 @@ class Client:
             name = self.auth_token.profile.name,
         )
 
+        await self.listen()
+
     async def on_start(self):
         await self.login()
-
-        while not self.closed:
-            p = await self.read_packet()
-            if p is None:
-                break
-
-            tasks = []
-            for func, checker in self.packet_listeners.items():
-                if checker(p):
-                    tasks.append(func(p))
-
-            # Will this slow down the client too much maybe?
-            await asyncio.gather(*tasks)
 
     def run(self):
         try:
@@ -351,15 +359,15 @@ class Client:
     @packet_listener(clientbound.EncryptionRequestPacket)
     async def _on_encryption_request(self, p):
         shared_secret = encryption.gen_shared_secret()
-        server_hash = encryption.gen_server_hash(p.server_id, shared_secret, p.pub_key)
+        server_hash   = encryption.gen_server_hash(p.server_id, shared_secret, p.public_key)
 
         await self.send_server_hash(server_hash)
 
-        enc_secret, enc_token = encryption.encrypt_secret_and_token(p.pub_key, shared_secret, p.verify_token)
+        enc_secret, enc_token = encryption.encrypt_secret_and_token(p.public_key, shared_secret, p.verify_token)
 
         await self.write_packet(serverbound.EncryptionResponsePacket,
             shared_secret = enc_secret,
-            verify_token = enc_token,
+            verify_token  = enc_token,
         )
 
         cipher = encryption.gen_cipher(shared_secret)
@@ -374,8 +382,10 @@ class Client:
     async def _on_login_success(self, p):
         self.current_state = enums.State.Play
 
+        self.should_listen_sequentially = False
+
     @packet_listener(clientbound.KeepAlivePacket)
     async def _on_keep_alive(self, p):
         await self.write_packet(serverbound.KeepAlivePacket,
-            id = p.id,
+            keep_alive_id = p.keep_alive_id,
         )

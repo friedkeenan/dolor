@@ -10,18 +10,16 @@ class ResponsePacket(Base):
             def __init__(self, raw):
                 self.version = raw["version"]
                 self.players = raw["players"]
+
                 self.description = Chat.Chat(raw["description"])
 
-                if "favicon" in raw:
-                    self.favicon = raw["favicon"]
-                else:
-                    self.favicon = None
+                self.favicon = raw.get("favicon")
 
-            def to_dict(self):
+            def dict(self):
                 ret = {
-                    "version": self.version,
-                    "players": self.players,
-                    "description": self.description.to_dict(),
+                    "version":     self.version,
+                    "players":     self.players,
+                    "description": self.description.dict(),
                 }
 
                 if self.favicon is not None:
@@ -30,19 +28,23 @@ class ResponsePacket(Base):
                 return ret
 
             def __repr__(self):
-                return f"{type(self).__name__}({repr(self.to_dict())})"
+                return f"{type(self).__name__}({self.dict()})"
 
-        def unpack(self, buf):
-            return self.Response(Json(buf).value)
+        # TODO: Default?
 
-        def __bytes__(self):
-            return bytes(Json(self.value.to_dict()))
+        @classmethod
+        def _unpack(cls, buf, *, ctx=None):
+            return cls.Response(Json.unpack(buf, ctx=ctx))
+
+        @classmethod
+        def _pack(cls, value, *, ctx=None):
+            return Json.pack(value.dict(), ctx=ctx)
 
     id = 0x00
 
-    fields = {"response": Response}
+    response: Response
 
 class PongPacket(Base):
     id = 0x01
 
-    fields = {"payload": Long}
+    payload: Long

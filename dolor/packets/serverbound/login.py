@@ -7,21 +7,16 @@ class Base(ServerboundPacket, LoginPacket):
 class LoginStartPacket(Base):
     id = 0x00
 
-    fields = {"name": String}
+    name: String(16)
 
 class EncryptionResponsePacket(Base):
     id = 0x01
 
-    fields = {
-        "shared_secret": RawByteArray(VarInt),
-        "verify_token":  RawByteArray(VarInt),
-    }
+    shared_secret: RawByte[VarInt]
+    verify_token:  RawByte[VarInt]
 
-class LoginPluginResponse(Base):
+class LoginPluginResponsePacket(Base):
     id = 0x02
 
-    fields = {
-        "message_id": VarInt,
-        "successful": Boolean,
-        "data":       RawByteArray(),
-    }
+    message_id: VarInt
+    data:       Optional(RawByte[None])

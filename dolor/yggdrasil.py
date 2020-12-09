@@ -10,7 +10,7 @@ class YggdrasilError(Exception):
 
         cause = self.info.get("cause")
         if cause is not None:
-            msg += f" (Cause: {cause}"
+            msg += f" (Cause: {cause})"
 
         super().__init__(msg)
 
@@ -19,14 +19,14 @@ class AuthenticationToken:
     headers = {"content-type": "application/json"}
 
     agent = {
-        "name": "Minecraft",
+        "name":    "Minecraft",
         "version": 1,
     }
 
     class Profile:
         def __init__(self, name, id):
             self.name = name
-            self.id = id
+            self.id   = id
 
         def uuid(self):
             return uuid.UUID(hex=self.id)
@@ -43,6 +43,7 @@ class AuthenticationToken:
 
         self.access_token = access_token
         self.client_token = client_token
+
         self.username = username
         self.password = password
 
@@ -63,9 +64,10 @@ class AuthenticationToken:
 
         try:
             await self.make_request("validate", data, 204)
-            return True
         except YggdrasilError:
             return False
+
+        return True
 
     async def refresh(self):
         data = {
@@ -77,7 +79,7 @@ class AuthenticationToken:
 
         self.access_token = info["accessToken"]
         self.client_token = info["clientToken"]
-        self.profile = self.Profile(info["selectedProfile"]["name"], info["selectedProfile"]["id"])
+        self.profile      = self.Profile(info["selectedProfile"]["name"], info["selectedProfile"]["id"])
 
     async def authenticate(self, invalidate_prev=False):
         data = {
@@ -96,7 +98,7 @@ class AuthenticationToken:
 
         self.access_token = info["accessToken"]
         self.client_token = info["clientToken"]
-        self.profile = self.Profile(info["selectedProfile"]["name"], info["selectedProfile"]["id"])
+        self.profile      = self.Profile(info["selectedProfile"]["name"], info["selectedProfile"]["id"])
 
     async def signout(self):
         data = {
@@ -117,7 +119,7 @@ class AuthenticationToken:
     async def make_request(self, endpoint, data, ok_status_code=200):
         async with aiohttp.ClientSession() as s:
             async with s.post(f"{self.auth_server}/{endpoint}",
-                json = data,
+                json    = data,
                 headers = self.headers,
             ) as resp:
                 if resp.status != ok_status_code:

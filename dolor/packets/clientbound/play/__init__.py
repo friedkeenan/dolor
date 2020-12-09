@@ -6,38 +6,38 @@ class Base(ClientboundPacket, PlayPacket):
     pass
 
 class ChatMessagePacket(Base):
-    id = 0x0F
+    id = 0x0e
 
-    fields = {
-        "data":     Chat,
-        "position": Enum(Byte, enums.ChatPosition),
-    }
+    data:     Chat
+    position: Enum(Byte, enums.ChatPosition)
+    sender:   UUID
+
 
 class DisconnectPlayPacket(Base):
-    id = 0x1B
+    id = 0x19
 
-    fields = {"reason": Chat}
+    reason: Chat
 
 class KeepAlivePacket(Base):
-    id = 0x21
+    id = 0x1f
 
-    fields = {"id": Long}
+    keep_alive_id: Long
 
 class RespawnPacket(Base):
-    id = 0x3B
+    id = 0x39
 
-    fields = {
-        "dimension":   Enum(Int, enums.Dimension),
-        "hashed_seed": Long,
-        "game_mode":   UnsignedByte,
-        "level_type":  String,
-    }
+    dimension:      NBT
+    world_name:     Identifier
+    hashed_seed:    Long
+    game_mode:      Enum(UnsignedByte, enums.GameMode)
+    prev_game_mode: Enum(UnsignedByte, enums.GameMode)
+    debug:          Boolean
+    flat:           Boolean
+    copy_metadata:  Boolean
 
 class UpdateHealthPacket(Base):
     id = 0x49
 
-    fields = {
-        "health":     Float,
-        "food":       VarInt,
-        "saturation": Float,
-    }
+    health:     Float
+    food:       VarInt
+    saturation: Float

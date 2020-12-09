@@ -1,32 +1,36 @@
 #!/usr/bin/env python3
 
 import dolor
-from dolor import packet_listener
-from dolor.packets import *
+from dolor.packets import clientbound, serverbound
 
 import config
 
 class MyClient(dolor.Client):
-    @packet_listener(clientbound.UpdateHealthPacket)
+    @dolor.packet_listener(clientbound.ChatMessagePacket)
+    async def on_message(self, p):
+        print(p.data.flatten())
+
+    @dolor.packet_listener(clientbound.UpdateHealthPacket)
     async def respawn(self, p):
         print(p)
+
         if p.health <= 0:
             await self.write_packet(serverbound.ClientStatusPacket,
                 action = dolor.enums.Action.Respawn,
             )
 
             await self.write_packet(serverbound.ChatMessagePacket,
-                message = "Poop",
+                message = "Poop"
             )
 
-    @packet_listener(clientbound.ChatMessagePacket)
-    async def on_message(self, p):
-        print(p.data.flatten())
+    @dolor.packet_listener(clientbound.RespawnPacket)
+    async def on_respawn(self, p):
+        print(p)
 
 if __name__ == "__main__":
-    c = MyClient("1.15.2", "localhost",
-        username = config.username,
-        password = config.password,
+    c = MyClient("1.16.4", "localhost",
+        username  = config.username,
+        password  = config.password,
         lang_file = "en_us.json",
     )
 

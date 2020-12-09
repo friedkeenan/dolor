@@ -6,9 +6,8 @@ class Base(ServerboundPacket, StatusPacket):
 
 class RequestPacket(Base):
     id = 0x00
-    fields = {}
 
 class PingPacket(Base):
     id = 0x01
 
-    fields = {"payload": Long}
+    payload: Long

@@ -1,125 +1,87 @@
 import io
-from ..types import *
-from .. import util
+
+from ..versions import Version, VersionSwitcher
+from ..types import TypeContext, VarInt, RawByte
 
 class PacketContext:
-    def __init__(self, proto=None):
-        self.proto = proto
+    def __init__(self, version=None):
+        if isinstance(version, str):
+            version = Version(version)
 
-class Packet:
+        self.version = version
+
+class PacketMeta(type):
+    def __init__(self, name, bases, namespace):
+        super().__init__(name, bases, namespace)
+
+        if hasattr(self, "__annotations__"):
+            for attr, attr_type in self.__annotations__.items():
+                setattr(self, attr, attr_type(_name=attr))
+        else:
+            self.__annotations__ = {}
+
+class Packet(metaclass=PacketMeta):
     id = None
-    fields = None
 
-    def __init__(self, buf=None, *, ctx=None, **kwargs):
-        self.raw = util.Raw(self)
-        self.raw.ctx = ctx
+    def __init__(self, *, buf=None, ctx=None, **kwargs):
+        if buf is not None and isinstance(buf, (bytes, bytearray)):
+            buf = io.BytesIO(buf)
 
-        if buf is not None:
-            if isinstance(buf, (bytes, bytearray)):
-                buf = io.BytesIO(buf)
-
-            for attr_name, attr_type in self.enumerate_fields():
-                if issubclass(attr_type, BaseArray):
-                    if isinstance(attr_type.len_attr, str):
-                        value = attr_type(buf, ctx=self.ctx, num_elems=getattr(self, attr_type.len_attr))
-                    else:
-                        value = attr_type(buf, ctx=self.ctx)
+        self._fields = {}
+        for attr, attr_type in self.enumerate_fields():
+            if buf is None:
+                if attr in kwargs:
+                    setattr(self, attr, kwargs[attr])
                 else:
-                    value = attr_type(buf, ctx=self.ctx)
+                    setattr(self, attr, attr_type.default(ctx=self.type_ctx(ctx)))
+            else:
+                setattr(self, attr, attr_type.unpack(buf, ctx=self.type_ctx(ctx)))
 
-                setattr(self.raw, attr_name, value)
-        else:
-            for attr_name, attr_type in self.enumerate_fields():
-                setattr(self.raw, attr_name, attr_type(ctx=self.ctx))
+    def type_ctx(self, ctx):
+        return TypeContext(self, ctx)
 
-        for attr, value in kwargs.items():
-            setattr(self, attr, value)
+    def pack(self, *, ctx=None):
+        return VarInt.pack(self.get_id(ctx=ctx), ctx=self.type_ctx(ctx)) + b"".join(y.pack(getattr(self, x), ctx=self.type_ctx(ctx)) for x, y in self.enumerate_fields())
 
-    def __getattribute__(self, attr):
-        v = object.__getattribute__(self, attr)
-        if isinstance(v, Type):
-            return v.value
-        return v
+    def _get_field(self, attr):
+        return self._fields[attr]
 
-    def __setattr__(self, attr, value):
-        # Need this to avoid enumerating fields before self.ctx is set
-        if attr == "raw":
-            object.__setattr__(self, attr, value)
-            return
-
-        for attr_name, attr_type in self.enumerate_fields():
-            if attr_name == attr:
-                setattr(self.raw, attr, attr_type(value, ctx=self.ctx))
-                break
-        else:
-            object.__setattr__(self, attr, value)
+    def _set_field(self, attr, value):
+        self._fields[attr] = value
 
     def __repr__(self):
         ret = f"{type(self).__name__}("
-        ret += ", ".join(f"{field}={repr(getattr(self, field))}" for field, _ in self.enumerate_fields())
+        ret += ", ".join(f"{x}={repr(getattr(self, x))}" for x, _ in self.enumerate_fields())
         ret += ")"
 
         return ret
 
-    def __bytes__(self):
-        """
-        Packs the id and the fields
-        into a bytes object
-        """
-
-        ret = VarInt(self.get_id(self.ctx), ctx=self.ctx)
-
-        for attr_name, _ in self.enumerate_fields():
-            tmp = getattr(self.raw, attr_name)
-
-            # Set the appropriate length attribute for an array
-            if isinstance(tmp, BaseArray):
-                if isinstance(tmp.len_attr, str):
-                    tmp_len = getattr(self.raw, tmp.len_attr)
-                    tmp_len.value = len(tmp.value) # Will also affect the type in ret
-
-            ret += tmp
-
-        return bytes(ret)
-
-    def enumerate_fields(self):
-        return self.get_fields(self.ctx).items()
+    @classmethod
+    def enumerate_fields(cls):
+        for attr, attr_type in cls.__annotations__.items():
+            yield attr, attr_type
 
     @classmethod
-    def get_id(cls, ctx):
-        """
-        Should return the packet ID,
-        or None if the packet should
-        not be recognized.
+    def unpack(cls, buf, *, ctx=None):
+        return cls(buf=buf, ctx=ctx)
 
-        If the ID needs to change based on
-        the protocol version, use ctx.proto.
-        """
+    @classmethod
+    def get_id(cls, *, ctx=None):
+        if isinstance(cls.id, VersionSwitcher):
+            return cls.id[ctx.version]
 
         return cls.id
 
-    @classmethod
-    def get_fields(cls, ctx):
-        """
-        Should return a dict of the form
-        {
-            "attribute": Type
-        }
-
-        If the fields need to change based on the
-        protocol version, use ctx.proto.
-        """
-
-        return cls.fields
-
 class BaseGenericPacket(Packet):
-    fields = {"data": RawByteArray()}
+    data: RawByte[None]
 
     def __repr__(self):
         return f"{type(self).__name__}(id={self.id:#x}, data={repr(self.data)})"
 
 def GenericPacket(id):
-    return type("GenericPacket", (BaseGenericPacket,), {"id": id})
+    return type("GenericPacket", (BaseGenericPacket,), dict(
+        id = id,
+    ))
 
 # Classes used for inheritance to know where a packet is bound and what state it's used in
 class ServerboundPacket(Packet):

@@ -7,35 +7,29 @@ class Base(ClientboundPacket, LoginPacket):
 class DisconnectLoginPacket(Base):
     id = 0x00
 
-    fields = {"reason": Chat}
+    reason: Chat
 
 class EncryptionRequestPacket(Base):
     id = 0x01
 
-    fields = {
-        "server_id":    String,
-        "pub_key":      RawByteArray(VarInt),
-        "verify_token": RawByteArray(VarInt),
-    }
+    server_id:    String(20)
+    public_key:   RawByte[VarInt]
+    verify_token: RawByte[VarInt]
 
 class LoginSuccessPacket(Base):
     id = 0x02
 
-    fields = {
-        "uuid":     UUIDString,
-        "username": String,
-    }
+    uuid:     UUID
+    username: String(16)
 
 class SetCompressionPacket(Base):
     id = 0x03
 
-    fields = {"threshold": VarInt}
+    threshold: VarInt
 
 class LoginPluginRequestPacket(Base):
     id = 0x04
 
-    fields = {
-        "message_id": VarInt,
-        "channel":    Identifier,
-        "data":       RawByteArray(),
-    }
+    message_id: VarInt
+    channel:    Identifier
+    data:       RawByte[None]
