@@ -5,8 +5,8 @@ from . import packets
 from . import types
 from . import nbt
 from . import encryption
-from . import common
+from . import connection
 from . import client
 
-from .common import packet_listener
+from .connection import packet_listener
 from .client import Client

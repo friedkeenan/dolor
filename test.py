@@ -20,7 +20,7 @@ class MyClient(dolor.Client):
             )
 
             await self.write_packet(serverbound.ChatMessagePacket,
-                message = "Poop"
+                message = "Poop",
             )
 
     @dolor.packet_listener(clientbound.RespawnPacket)
