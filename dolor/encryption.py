@@ -22,7 +22,7 @@ def encrypt_secret_and_token(public_key, shared_secret, verify_token):
     key = load_der_public_key(public_key, default_backend())
 
     enc_secret = key.encrypt(bytes(shared_secret), PKCS1v15())
-    enc_token  = key.encrypt(bytes(verify_token), PKCS1v15())
+    enc_token  = key.encrypt(bytes(verify_token),  PKCS1v15())
 
     return enc_secret, enc_token
 

@@ -6,6 +6,7 @@ from . import types
 from . import nbt
 from . import encryption
 from . import connection
+from . import packet_handler
 from . import client
 from . import server
 

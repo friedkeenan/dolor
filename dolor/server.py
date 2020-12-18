@@ -41,7 +41,7 @@ class Server(PacketHandler):
         self.connections.append(c)
 
         while self.srv.is_serving():
-            if not await self.listen_step(c)
+            if not await self.listen_step(c):
                 self.connections.remove(c)
 
                 return
