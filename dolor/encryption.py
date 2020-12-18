@@ -36,14 +36,23 @@ class EncryptedFileObject(io.IOBase):
         self.decryptor = decryptor
         self.encryptor = encryptor
 
-    def read(self, length=-1):
-        return self.decryptor.update(self.f.read(length))
+    async def read(self, length=-1):
+        return self.decryptor.update(await self.f.read(length))
+
+    async def readexactly(self, length):
+        return self.decryptor.update(await self.f.readexactly(length))
 
     def write(self, b):
         return self.f.write(self.encryptor.update(b))
 
-    def tell(self):
-        return self.f.tell()
+    async def drain(self):
+        await self.f.drain()
+
+    def is_closing(self):
+        return self.f.is_closing()
 
     def close(self):
         self.f.close()
+
+    async def wait_closed(self):
+        await self.f.wait_closed()

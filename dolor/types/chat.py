@@ -26,23 +26,6 @@ class Chat(Type):
 
                 cls.translate_fmt[key] = value
 
-        @staticmethod
-        def handle_type(raw):
-            if isinstance(raw, list):
-                ret = raw[0]
-
-                if "extra" in ret:
-                    ret["extra"] += raw[1:]
-                else:
-                    ret["extra"] = raw[1:]
-
-                return ret
-
-            if isinstance(raw, str):
-                return {"text": raw}
-
-            return raw
-
         def __init__(self, raw, parent=None):
             self.parent = parent
             if parent is None:
@@ -89,6 +72,22 @@ class Chat(Type):
             else:
                 # TODO: Support more component types
                 raise ValueError("Invalid component type")
+
+        def handle_type(self, raw):
+            if isinstance(raw, list):
+                ret = raw[0]
+
+                if "extra" in ret:
+                    ret["extra"] += raw[1:]
+                else:
+                    ret["extra"] = raw[1:]
+
+                return ret
+
+            if isinstance(raw, str):
+                return {"text": raw}
+
+            return raw
 
         def parse_field(self, raw, attr, handler=None, *, key=None):
             if key is None:

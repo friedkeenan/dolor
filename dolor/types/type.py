@@ -24,14 +24,14 @@ class TypeMeta(abc.ABCMeta):
 
         return Array(self, index)
 
-    def __call__(self, *args, **kwargs):
-        if "_name" in kwargs:
-            return super().__call__(*args, **kwargs)
-
-        return self._call(*args, **kwargs)
-
 class Type(metaclass=TypeMeta):
     _default = None
+
+    def __new__(cls, *args, **kwargs):
+        if "_name" in kwargs:
+            return super().__new__(cls)
+
+        return cls._call(*args, **kwargs)
 
     def __init__(self, *, _name=None):
         self._name = _name

@@ -12,7 +12,6 @@ class ChatMessagePacket(Base):
     position: Enum(Byte, enums.ChatPosition)
     sender:   UUID
 
-
 class DisconnectPlayPacket(Base):
     id = 0x19
 

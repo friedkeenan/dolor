@@ -6,13 +6,13 @@ from . import enums
 from . import util
 from . import encryption
 from . import connection
-from .connection import packet_listener
+from .packet_handler import packet_listener, PacketHandler
 from .versions import Version
-from .types import VarInt, Chat
+from .types import Chat
 from .packets import PacketContext, ClientboundPacket, serverbound, clientbound
 from .yggdrasil import AuthenticationToken
 
-class Client(connection.Connection):
+class Client(connection.Connection, PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
 
     def __init__(self, version, address, port=25565, *,
@@ -38,12 +38,11 @@ class Client(connection.Connection):
         if lang_file is not None:
             Chat.Chat.load_translations(lang_file)
 
-        super().__init__(ClientboundPacket)
+        self.should_listen_sequentially = True
 
-    @property
-    def intrinsic_functions(self):
-        for attr in dir(self):
-            yield getattr(self, attr)
+        # TODO: Figure out a way to do this with super
+        connection.Connection.__init__(self, ClientboundPacket)
+        PacketHandler.__init__(self)
 
     async def send_server_hash(self, server_hash):
         async with aiohttp.ClientSession() as s:
@@ -58,13 +57,36 @@ class Client(connection.Connection):
                 if resp.status != 204:
                     raise ValueError(f"Invalid status code from session server: {resp.status}")
 
+    async def listen_step(self):
+        p = await self.read_packet()
+        if p is None:
+            return
+
+        tasks = []
+
+        for func, checker in self.packet_listeners.items():
+            if checker(self, p):
+                if self.should_listen_sequentially:
+                    tasks.append(func(p))
+                else:
+                    asyncio.create_task(func(p))
+
+        if self.should_listen_sequentially:
+            await asyncio.gather(*tasks)
+
     async def on_start(self):
         await self.login()
 
     async def start(self):
-        self.transport, _ = await asyncio.get_running_loop().create_connection(self.protocol_factory, self.address, self.port)
+        self.reader, self.writer = await asyncio.open_connection(self.address, self.port)
 
-        await super().start()
+        await self.on_start()
+
+    def run(self):
+        try:
+            asyncio.run(self.start())
+        except KeyboardInterrupt:
+            self.close()
 
     async def status(self):
         if self.current_state != enums.State.Handshaking:
@@ -112,13 +134,17 @@ class Client(connection.Connection):
             name = self.auth_token.profile.name,
         )
 
-        await self.listen()
+        while not self.is_closing():
+            await self.listen_step()
 
     # Default packet listeners
 
     @packet_listener(clientbound.DisconnectLoginPacket, clientbound.DisconnectPlayPacket)
     async def _on_disconnect(self, p):
         print("Disconnected:", p.reason.flatten())
+
+        self.close()
+        await self.wait_closed()
 
     @packet_listener(clientbound.EncryptionRequestPacket)
     async def _on_encryption_request(self, p):
@@ -135,8 +161,8 @@ class Client(connection.Connection):
         )
 
         cipher = encryption.gen_cipher(shared_secret)
-        self.decryptor = cipher.decryptor()
-        self.encryptor = cipher.encryptor()
+        self.reader = encryption.EncryptedFileObject(self.reader, cipher.decryptor(), None)
+        self.writer = encryption.EncryptedFileObject(self.writer, None, cipher.encryptor())
 
     @packet_listener(clientbound.SetCompressionPacket)
     async def _on_set_compression(self, p):

@@ -9,94 +9,17 @@ from . import encryption
 from .types import VarInt
 from .packets import GenericPacket, HandshakingPacket, StatusPacket, LoginPacket, PlayPacket
 
-def packet_listener(*checkers):
-    """Decorator for packet listeners within a class."""
-
-    def dec(func):
-        # Set the _checkers attribute to be later
-        # recognized and registered by the class
-        func._checkers = checkers
-
-        return func
-
-    return dec
-
-class Connection(abc.ABC):
-    class Protocol(asyncio.Protocol):
-        def __init__(self, receiver):
-            self.receiver = receiver
-
-            self.buffer = bytearray()
-            self.length = -1
-
-        @property
-        def ctx(self):
-            try:
-                return self.receiver.ctx
-            except AttributeError:
-                return None
-
-        def connection_made(self, transport):
-            self.receiver.connection_made(transport)
-
-        def connection_lost(self, exc):
-            self.receiver.connection_lost(exc)
-
-        def data_received(self, data):
-            self.buffer.extend(data)
-
-            while len(self.buffer) >= self.length:
-                buf = io.BytesIO(self.buffer)
-
-                # Perform decryption in the protocol because
-                # the length is also encrypted
-                if self.receiver.decryptor is not None:
-                    buf = encryption.EncryptedFileObject(buf, self.receiver.decryptor, self.receiver.encryptor)
-
-                if self.length < 0:
-                    try:
-                        self.length = VarInt.unpack(buf, ctx=self.ctx)
-                    except:
-                        return
-
-                    del self.buffer[:buf.tell()]
-
-                if len(self.buffer) >= self.length:
-                    self.receiver.data_received(buf.read(self.length))
-
-                    del self.buffer[:self.length]
-                    self.length = -1
-
+class Connection:
     def __init__(self, bound):
         self.bound = bound
-
         self.current_state = enums.State.Handshaking
 
-        self.closed     = True
-        self.transport  = None
-        self.read_queue = None
-        self.decryptor  = None
-        self.encryptor  = None
+        self.read_lock = asyncio.Lock()
+
+        self.reader = None
+        self.writer = None
 
         self.comp_threshold = 0
-
-        self.should_listen_sequentially = False
-
-        self.packet_listeners = {}
-        self.register_intrinsic_listeners()
-
-    @property
-    @abc.abstractmethod
-    def intrinsic_functions(self):
-        raise NotImplementedError
-
-    def register_intrinsic_listeners(self):
-        for func in self.intrinsic_functions:
-            # If the function was decorated with
-            # the packet_listener function, then
-            # it will have the _checkers attribute
-            if hasattr(func, "_checkers"):
-                self.register_packet_listener(func, *func._checkers)
 
     def gen_packet_info(self, state, *, ctx=None):
         state_class = {
@@ -142,84 +65,15 @@ class Connection(abc.ABC):
         except AttributeError:
             pass
 
-    def protocol_factory(self):
-        return self.Protocol(self)
-
-    def connection_made(self, transport):
-        self.closed = False
-
-    def connection_lost(self, exc):
-        self.close()
-
-        if exc is not None:
-            raise exc
-
-    def data_received(self, data):
-        self.read_queue.put_nowait(data)
+    def is_closing(self):
+        return self.writer.is_closing()
 
     def close(self):
-        if not self.closed:
-            self.closed = True
+        if not self.is_closing():
+            self.writer.close()
 
-            if not self.transport.is_closing():
-                self.transport.write_eof()
-                self.transport.close()
-
-    def abort(self):
-        self.transport.abort()
-        self.close()
-
-    def to_real_packet_checker(self, checker):
-        if isinstance(checker, type):
-            # Packet class
-            return lambda x: isinstance(x, checker)
-        elif isinstance(checker, int):
-            # Packet id
-            return lambda x: (x.get_id(ctx=self.ctx) == checker)
-
-        return checker
-
-    def join_checkers(self, first, second):
-        return lambda x: (first(x) or second(x))
-
-    def register_packet_listener(self, func, *checkers):
-        """
-        Registers a packet listener.
-
-        func is a coroutine function and each
-        checker is either a packet class, a packet
-        id, or a function that returns whether
-        the listener should be called.
-        """
-
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError(f"Packet listener {func.__name__} isn't a coroutine function")
-
-        real_checker = None
-        for c in checkers:
-            real_c = self.to_real_packet_checker(c)
-
-            if real_checker is None:
-                real_checker = real_c
-            else:
-                real_checker = self.join_checkers(real_checker, real_c)
-
-        self.packet_listeners[func] = real_checker
-
-    def unregister_packet_listener(self, func):
-        """Unregisters a packet listener."""
-
-        self.packet_listeners.pop(func)
-
-    def external_packet_listener(self, *checkers):
-        """Decorator for external packet listeners."""
-
-        def dec(func):
-            self.register_packet_listener(func, *checkers)
-
-            return func
-
-        return dec
+    async def wait_closed(self):
+        await self.writer.wait_closed()
 
     def create_packet(self, pack_class, **kwargs):
         """
@@ -229,51 +83,61 @@ class Connection(abc.ABC):
 
         return pack_class(ctx=self.ctx, **kwargs)
 
-    async def read_packet(self, *, timeout=None):
+    async def read_packet(self):
         """
         Reads a packet.
 
-        If timeout is None, it will return
-        None if the connection gets closed,
-        otherwise it will only return once
-        it receives a packet.
-
-        Otherwise, it will try to return
-        the packet before it times out no
-        matter what.
+        Will return None and close the
+        connection if eof is reached.
         """
 
-        while not self.closed:
-            if timeout is not None:
-                data = await asynio.wait_for(self.read_queue.get(), timeout)
-            else:
-                try:
-                    data = await asyncio.wait_for(self.read_queue.get(), 1)
-                except asyncio.TimeoutError:
-                    continue
+        data = b""
 
-            data = io.BytesIO(data)
+        try:
+            async with self.read_lock:
+                length_buf = b""
+                length     = -1
 
-            if self.comp_threshold > 0:
-                data_len = VarInt.unpack(data, ctx=self.ctx)
+                while True:
+                    length_buf += await self.reader.readexactly(1)
 
-                if data_len > 0:
-                    if data_len < self.comp_threshold:
-                        self.close()
+                    try:
+                        length = VarInt.unpack(length_buf, ctx=self.ctx)
+                    except:
+                        continue
 
-                        raise ValueError(f"Invalid data length ({data_len}) for compression threshold ({self.comp_threshold})")
+                    break
 
-                    data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+                if length >= 0:
+                    data = await self.reader.readexactly(length)
 
-            id         = VarInt.unpack(data, ctx=self.ctx)
-            pack_class = self.packet_info.get(id)
+        except asyncio.IncompleteReadError:
+            self.close()
+            await self.wait_closed()
 
-            if pack_class is None:
-                pack_class = GenericPacket(id)
+            return None
 
-            return pack_class.unpack(data, ctx=self.ctx)
+        data = io.BytesIO(data)
 
-        return None
+        if self.comp_threshold > 0:
+            data_len = VarInt.unpack(data, ctx=self.ctx)
+
+            if data_len > 0:
+                if data_len < self.comp_threshold:
+                    self.close()
+                    await self.wait_closed()
+
+                    raise ValueError(f"Invalid data length ({data_len}) for compression threshold ({self.comp_threshold})")
+
+                data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
+
+        id         = VarInt.unpack(data, ctx=self.ctx)
+        pack_class = self.packet_info.get(id)
+
+        if pack_class is None:
+            pack_class = GenericPacket(id)
+
+        return pack_class.unpack(data, ctx=self.ctx)
 
     async def write_packet(self, packet, **kwargs):
         """
@@ -291,6 +155,8 @@ class Connection(abc.ABC):
 
         if isinstance(packet, type):
             packet = self.create_packet(packet, **kwargs)
+        elif len(kwargs) > 0:
+            raise TypeError("Packet object passed with keyword arguments")
 
         data = packet.pack(ctx=self.ctx)
 
@@ -305,42 +171,5 @@ class Connection(abc.ABC):
 
         data = VarInt.pack(len(data), ctx=self.ctx) + data
 
-        if self.encryptor is not None:
-            data = self.encryptor.update(data)
-
-        self.transport.write(data)
-
-    @abc.abstractmethod
-    async def on_start():
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def start(self):
-        # Has to be created here so it can get
-        # the currently running loop
-        self.read_queue = asyncio.Queue()
-
-        await self.on_start()
-
-    def run(self):
-        try:
-            asyncio.run(self.start())
-        except KeyboardInterrupt:
-            pass
-
-    async def listen(self):
-        while not self.closed:
-            p = await self.read_packet()
-            if p is None:
-                return
-
-            tasks = []
-            for func, checker in self.packet_listeners.items():
-                if checker(p):
-                    if self.should_listen_sequentially:
-                        tasks.append(func(p))
-                    else:
-                        asyncio.create_task(func(p))
-
-            if self.should_listen_sequentially:
-                await asyncio.gather(*tasks)
+        self.writer.write(data)
+        await self.writer.drain()
