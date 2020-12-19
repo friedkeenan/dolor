@@ -201,7 +201,7 @@ def load(f):
 
     if isinstance(f, (bytes, bytearray)):
         f = io.BytesIO(f)
-    elif isinstance(f, str):
+    elif util.is_pathlike(f):
         f = open(f, "rb")
         should_close = True
 

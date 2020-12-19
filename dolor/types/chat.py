@@ -1,6 +1,7 @@
 import json
 import re
 
+from .. import util
 from .type import Type
 from .string import Json
 
@@ -14,7 +15,7 @@ class Chat(Type):
 
         @classmethod
         def load_translations(cls, file):
-            if isinstance(file, str):
+            if util.is_pathlike(file):
                 with open(file) as f:
                     cls.translate_fmt = json.load(f)
             else:

@@ -1,6 +1,7 @@
 import asyncio
 import base64
 
+from . import util
 from . import connection
 from .packet_handler import packet_listener, PacketHandler
 from .versions import Version
@@ -45,7 +46,7 @@ class Server(PacketHandler):
             description = Chat.Chat(description)
 
         if favicon is not None:
-            if isinstance(favicon, str):
+            if util.is_pathlike(favicon):
                 with open(favicon, "rb") as f:
                     favicon = f.read()
 
