@@ -18,6 +18,9 @@ class TypeContext:
         else:
             self.version = Version(None)
 
+    def __eq__(self, other):
+        return self.version == other.version and self.instance is other.instance
+
 class TypeMeta(abc.ABCMeta):
     def __getitem__(self, index):
         from .array import Array

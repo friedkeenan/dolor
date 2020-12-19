@@ -74,6 +74,9 @@ class Chat(Type):
                 raise ValueError("Invalid component type")
 
         def handle_type(self, raw):
+            if raw is None:
+                return {"text": "None"}
+
             if isinstance(raw, list):
                 ret = raw[0]
 

@@ -16,7 +16,7 @@ class Version:
             if proto == proto_version:
                 return name
 
-        raise ValueError(f"Unsupported protocol version: {proto}")
+        return None
 
     def __init__(self, name, *, check_supported=False):
         if isinstance(name, int):
@@ -30,7 +30,7 @@ class Version:
     @property
     def proto(self):
         if self.name is None:
-            return 0
+            return -1
 
         return self.supported_versions[self.name]
 
@@ -82,7 +82,15 @@ class VersionRange:
         if not isinstance(value, Version):
             value = Version(value)
 
-        return self.start <= value and value < self.stop
+        ret = True
+
+        if self.start is not None:
+            ret = ret and self.start <= value
+
+        if self.stop is not None:
+            ret = ret and value < self.stop
+
+        return ret
 
 class VersionSwitcher:
     def __init__(self, switch):

@@ -1,3 +1,4 @@
+from ...versions import Version
 from ...types import *
 from ..packet import *
 
@@ -7,17 +8,27 @@ class Base(ClientboundPacket, StatusPacket):
 class ResponsePacket(Base):
     class Response(Type):
         class Response:
-            def __init__(self, raw):
-                self.version = raw["version"]
-                self.players = raw["players"]
+            def __init__(self, *, version=None, players=None, description=None, favicon=None, raw=None):
+                if raw is not None:
+                    self.version = Version(raw["version"]["name"])
+                    self.players = raw["players"]
 
-                self.description = Chat.Chat(raw["description"])
+                    self.description = Chat.Chat(raw["description"])
 
-                self.favicon = raw.get("favicon")
+                    self.favicon = raw.get("favicon")
+                else:
+                    self.version     = version
+                    self.players     = players
+                    self.description = description
+                    self.favicon     = favicon
 
             def dict(self):
                 ret = {
-                    "version":     self.version,
+                    "version": {
+                        "name":     self.version.name,
+                        "protocol": self.version.proto
+                    },
+
                     "players":     self.players,
                     "description": self.description.dict(),
                 }
@@ -30,11 +41,11 @@ class ResponsePacket(Base):
             def __repr__(self):
                 return f"{type(self).__name__}({self.dict()})"
 
-        # TODO: Default?
+        _default = Response()
 
         @classmethod
         def _unpack(cls, buf, *, ctx=None):
-            return cls.Response(Json.unpack(buf, ctx=ctx))
+            return cls.Response(raw=Json.unpack(buf, ctx=ctx))
 
         @classmethod
         def _pack(cls, value, *, ctx=None):

@@ -10,6 +10,9 @@ class PacketContext:
 
         self.version = version
 
+    def __eq__(self, other):
+        return self.version == other.version
+
 class PacketMeta(type):
     def __init__(self, name, bases, namespace):
         super().__init__(name, bases, namespace)
