@@ -8,6 +8,8 @@ class Version:
     # Must be ordered chronologically
     supported_versions = {
         "1.16.4": 754,
+
+        None: -1,
     }
 
     @classmethod
@@ -18,29 +20,20 @@ class Version:
 
         return None
 
-    def __init__(self, name, *, check_supported=False):
+    def __init__(self, name, proto=-1, *, check_supported=False):
         if isinstance(name, int):
-            name = self.name_from_proto(name)
+            proto = name
+            name  = self.name_from_proto(name)
 
         if check_supported and name is not None and name not in self.supported_versions:
             raise ValueError(f"Unsupported version: {name}. If you know what you are doing, pass None instead.")
 
         self.name = name
 
-    @property
-    def proto(self):
-        if self.name is None:
-            return -1
-
-        return self.supported_versions[self.name]
-
-    @proto.setter
-    def proto(self, value):
-        try:
-            self.name = self.name_from_proto(value)
-        except ValueError as e:
-            if self.name is not None:
-                raise AttributeError(e.message)
+        if proto < 0:
+            self.proto = self.supported_versions[self.name]
+        else:
+            self.proto = proto
 
     def __eq__(self, other):
         if isinstance(other, Version):
@@ -72,6 +65,9 @@ class Version:
 
     def __le__(self, other):
         return self == other or self < other
+
+    def __repr__(self):
+        return f"{type(self).__name__}({repr(self.name)}, {repr(self.proto)})"
 
 class VersionRange:
     def __init__(self, start, stop):

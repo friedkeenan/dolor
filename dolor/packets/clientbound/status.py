@@ -10,7 +10,7 @@ class ResponsePacket(Base):
         class Response:
             def __init__(self, *, version=None, players=None, description=None, favicon=None, raw=None):
                 if raw is not None:
-                    self.version = Version(raw["version"]["name"])
+                    self.version = Version(raw["version"]["name"], raw["version"]["protocol"])
                     self.players = raw["players"]
 
                     self.description = Chat.Chat(raw["description"])

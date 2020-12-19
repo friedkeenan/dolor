@@ -51,7 +51,7 @@ class Server(PacketHandler):
                     favicon = f.read()
 
             favicon = base64.encodebytes(favicon).replace(b"\n", b"")
-            favicon = f"data:image/png;base64,{favicon}"
+            favicon = f"data:image/png;base64,{favicon.decode('utf-8')}"
 
         self.description = description or Chat.default()
         self.favicon     = favicon
@@ -142,7 +142,7 @@ class Server(PacketHandler):
             await c.write_packet(clientbound.DisconnectLoginPacket,
                 reason = Chat.Chat({
                     "translate": "multiplayer.disconnect.outdated_client",
-                    "with": [self.version.name],
+                    "with":      [self.version.name],
                 }),
             )
 

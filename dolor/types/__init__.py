@@ -12,3 +12,6 @@ from .compound import *
 from .optional import *
 from .version_switched import *
 from .misc import *
+
+# Delete type to stop builtin conflict
+del type
