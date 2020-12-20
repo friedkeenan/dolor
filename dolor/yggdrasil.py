@@ -20,7 +20,7 @@ class YggdrasilError(Exception):
 
 class AuthenticationToken:
     auth_server = "https://authserver.mojang.com"
-    headers = {"content-type": "application/json"}
+    headers     = {"content-type": "application/json"}
 
     agent = {
         "name":    "Minecraft",
@@ -32,6 +32,7 @@ class AuthenticationToken:
             self.name = name
             self.id   = id
 
+        @property
         def uuid(self):
             return uuid.UUID(hex=self.id)
 

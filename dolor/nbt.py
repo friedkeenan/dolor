@@ -224,7 +224,7 @@ def load(f):
 
     return ret
 
-def dump(obj, f=None, compression=gzip):
+def dump(obj, f=None, *, compression=None):
     if compression is not None and not inspect.isfunction(compression):
         compression = compression.compress
 
