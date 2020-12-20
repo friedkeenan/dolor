@@ -7,9 +7,9 @@ from . import nbt
 from . import encryption
 from . import connection
 from . import packet_handler
-from . import client
-from . import server
+from . import clients
+from . import servers
 
 from .packet_handler import packet_listener
-from .client import Client
-from .server import Server
+from .clients import Client
+from .servers import Server

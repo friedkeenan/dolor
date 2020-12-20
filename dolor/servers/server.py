@@ -1,12 +1,12 @@
 import asyncio
 import base64
 
-from . import util
-from . import connection
-from .packet_handler import packet_listener, PacketHandler
-from .versions import Version
-from .types import Chat
-from .packets import PacketContext, ServerboundPacket, serverbound, clientbound
+from .. import util
+from .. import connection
+from ..packet_handler import packet_listener, PacketHandler
+from ..versions import Version
+from ..types import Chat
+from ..packets import PacketContext, ServerboundPacket, serverbound, clientbound
 
 class Server(PacketHandler):
     class Connection(connection.Connection):

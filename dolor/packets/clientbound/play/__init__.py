@@ -5,6 +5,8 @@ from ...packet import *
 class Base(ClientboundPacket, PlayPacket):
     pass
 
+GameModeType = Enum(UnsignedByte, enums.GameMode)
+
 class ChatMessagePacket(Base):
     id = 0x0e
 
@@ -22,14 +24,33 @@ class KeepAlivePacket(Base):
 
     keep_alive_id: Long
 
+class JoinGamePacket(Base):
+    id = 0x24
+
+    entity_id:             Int
+    hardcore:              Boolean
+    game_mode:             GameModeType
+    prev_game_mode:        GameModeType
+    world_names:           Identifier[VarInt]
+    dimension_codec:       NBT
+    dimension:             NBT
+    world_name:            Identifier
+    hashed_seed:           Long
+    max_players:           VarInt
+    view_distance:         VarInt
+    reduced_debug_info:    Boolean
+    enable_respawn_screen: Boolean
+    debug:                 Boolean
+    flat:                  Boolean
+
 class RespawnPacket(Base):
     id = 0x39
 
     dimension:      NBT
     world_name:     Identifier
     hashed_seed:    Long
-    game_mode:      Enum(UnsignedByte, enums.GameMode)
-    prev_game_mode: Enum(UnsignedByte, enums.GameMode)
+    game_mode:      GameModeType
+    prev_game_mode: GameModeType
     debug:          Boolean
     flat:           Boolean
     copy_metadata:  Boolean

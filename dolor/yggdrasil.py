@@ -6,7 +6,11 @@ class YggdrasilError(Exception):
         self.status = status
         self.info = info
 
-        msg = f"[{self.status}] {self.info['error']}: {self.info['errorMessage']}"
+        msg = f"[{self.status}] {self.info['error']}"
+
+        error_message = self.info.get("errorMessage")
+        if error_message is not None:
+            msg += f": {self.info['errorMessage']}"
 
         cause = self.info.get("cause")
         if cause is not None:

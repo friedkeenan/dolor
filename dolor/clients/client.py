@@ -2,15 +2,15 @@ import asyncio
 import aiohttp
 import time
 
-from . import enums
-from . import util
-from . import encryption
-from . import connection
-from .packet_handler import packet_listener, PacketHandler
-from .versions import Version
-from .types import Chat
-from .packets import PacketContext, ClientboundPacket, serverbound, clientbound
-from .yggdrasil import AuthenticationToken
+from .. import enums
+from .. import util
+from .. import encryption
+from .. import connection
+from ..packet_handler import packet_listener, PacketHandler
+from ..versions import Version
+from ..types import Chat
+from ..packets import PacketContext, ClientboundPacket, serverbound, clientbound
+from ..yggdrasil import AuthenticationToken
 
 class Client(connection.Connection, PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
@@ -122,10 +122,10 @@ class Client(connection.Connection, PacketHandler):
         self.should_listen_sequentially = True
 
         await self.write_packet(serverbound.HandshakePacket,
-            proto_version = self.ctx.version.proto,
+            proto_version  = self.ctx.version.proto,
             server_address = self.address,
-            server_port = self.port,
-            next_state = enums.State.Login,
+            server_port    = self.port,
+            next_state     = enums.State.Login,
         )
 
         self.current_state = enums.State.Login
@@ -161,6 +161,7 @@ class Client(connection.Connection, PacketHandler):
         )
 
         cipher = encryption.gen_cipher(shared_secret)
+
         self.reader = encryption.EncryptedFileObject(self.reader, cipher.decryptor(), None)
         self.writer = encryption.EncryptedFileObject(self.writer, None, cipher.encryptor())
 
