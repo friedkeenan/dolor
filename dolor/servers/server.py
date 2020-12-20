@@ -119,7 +119,7 @@ class Server(PacketHandler):
                 return
 
     async def connection_task(self, c):
-        print("Logged in:" c)
+        print("Logged in:", c)
 
         # TODO: Fill this out I guess
         await c.write_packet(clientbound.JoinGamePacket)
