@@ -44,12 +44,6 @@ class Server(PacketHandler):
         def is_player(self):
             return self.current_state == enums.State.Play
 
-        async def wait_closed(self):
-            if self.central_task is not None:
-                await self.central_task
-
-            await super().wait_closed()
-
         async def disconnect(self, reason):
             if self.current_state == enums.State.Login:
                 packet = clientbound.DisconnectLoginPacket
@@ -63,6 +57,27 @@ class Server(PacketHandler):
             self.close()
             # TODO: Should we wait for the connection to be closed?
             await self.wait_closed()
+
+        async def message(self, message, position=enums.ChatPosition.Chat):
+            await self.write_packet(clientbound.ChatMessagePacket(
+                data     = message,
+                position = position,
+                sender   = self.uuid,
+            ))
+
+        def close(self):
+            if not self.is_closing():
+                super().close()
+
+                if self.central_task is not None:
+                    self.central_task.cancel()
+
+        async def wait_closed(self):
+            if self.is_closing():
+                await super().wait_closed()
+
+                if self.central_task is not None:
+                    await self.central_task
 
         def __eq__(self, other):
             return self.uuid == other.uuid
@@ -180,15 +195,21 @@ class Server(PacketHandler):
 
         return True
 
+    def append(self, c):
+        self.connections.append(c)
+
+    def remove(self, c):
+        self.connections.remove(c)
+
     async def new_connection(self, reader, writer):
         c = self.Connection(self, reader, writer)
-        self.connections.append(c)
+        self.append(c)
 
         while self.is_serving():
             if not await self.listen_step(c):
                 break
 
-        self.connections.remove(c)
+        self.remove(c)
 
     async def central_connection_task(self, c):
         print("Logged in:", c)
@@ -367,33 +388,33 @@ class Server(PacketHandler):
 
     @connection_task
     async def _keep_alive_task(self, c):
-        c.keep_alive_queue = asyncio.Queue()
-        c.last_keep_alive  = time.time()
+        timeout = 25
+        sleep   = 5
 
         while not c.is_closing():
-            if time.time() - c.last_keep_alive > 30:
+            await asyncio.sleep(sleep)
+
+            keep_alive_id = int(time.time() * 1000)
+
+            await c.write_packet(clientbound.KeepAlivePacket,
+                keep_alive_id = keep_alive_id,
+            )
+
+            try:
+                p = await asyncio.wait_for(c.read_packet(serverbound.KeepAlivePacket), timeout)
+            except asyncio.TimeoutError:
                 await c.disconnect({
                     "translate": "disconnect.timeout",
                 })
 
                 return
 
-            keep_alive_id = int(time.time() * 1000)
-            await c.keep_alive_queue.put(keep_alive_id)
+            if p is None:
+                return
 
-            await c.write_packet(clientbound.KeepAlivePacket,
-                keep_alive_id = keep_alive_id,
-            )
+            if p.keep_alive_id != keep_alive_id:
+                await c.disconnect({
+                    "translate": "disconnect.timeout",
+                })
 
-            await asyncio.sleep(5)
-
-    @packet_listener(serverbound.KeepAlivePacket)
-    async def _on_keep_alive(self, c, p):
-        if p.keep_alive_id != await c.keep_alive_queue.get():
-            await c.disconnect({
-                "translate": "disconnect.timeout",
-            })
-
-            return
-
-        c.last_keep_alive = time.time()
+                return

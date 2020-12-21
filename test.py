@@ -15,9 +15,9 @@ class MyClient(dolor.clients.ChatClient, dolor.clients.RespawnClient):
 
 if __name__ == "__main__":
     c = MyClient("1.16.4", "localhost",
+        lang_file = "en_us.json",
         username  = config.username,
         password  = config.password,
-        lang_file = "en_us.json",
     )
 
     c.run()

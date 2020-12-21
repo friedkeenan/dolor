@@ -75,16 +75,19 @@ class Packet(metaclass=PacketMeta):
 
         return cls.id
 
-class BaseGenericPacket(Packet):
+class GenericPacket(Packet):
     data: RawByte[None]
 
-    def __repr__(self):
-        return f"{type(self).__name__}(id={self.id:#x}, data={repr(self.data)})"
+    def __new__(cls, id=None, **kwargs):
+        if id is None and cls.id is None:
+            raise TypeError("Use of GenericPacket without setting its id")
 
-def GenericPacket(id):
-    return type("GenericPacket", (BaseGenericPacket,), dict(
-        id = id,
-    ))
+        if id is None:
+            return super().__new__(cls)
+
+        return type(f"{cls.__name__}({id:#x})", (cls,), dict(
+            id = id,
+        ))
 
 # Classes used for inheritance to know where a packet is bound and what state it's used in
 class ServerboundPacket(Packet):

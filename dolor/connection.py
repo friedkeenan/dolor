@@ -14,7 +14,8 @@ class Connection:
         self.bound = bound
         self.current_state = enums.State.Handshaking
 
-        self.read_lock = asyncio.Lock()
+        self.read_lock      = asyncio.Lock()
+        self.specific_reads = {}
 
         self.reader = None
         self.writer = None
@@ -86,13 +87,33 @@ class Connection:
 
         return pack_class(ctx=self.ctx, **kwargs)
 
-    async def read_packet(self):
+    async def read_packet(self, read_class=None):
         """
         Reads a packet.
+
+        If read_class is not None, then
+        it will return the next packet
+        of that class.
 
         Will return None and close the
         connection if eof is reached.
         """
+
+        if read_class is not None:
+            # TODO: Handle generic packets maybe?
+            packet_holder = self.specific_reads.get(read_class)
+
+            if packet_holder is None:
+                packet_holder                   = util.AsyncValueHolder()
+                self.specific_reads[read_class] = packet_holder
+
+            while not self.is_closing():
+                try:
+                    return await asyncio.wait_for(packet_holder.get(), 1)
+                except asyncio.TimeoutError:
+                    pass
+
+            return None
 
         data = b""
 
@@ -116,7 +137,6 @@ class Connection:
 
         except asyncio.IncompleteReadError:
             self.close()
-            await self.wait_closed()
 
             return None
 
@@ -140,7 +160,14 @@ class Connection:
         if pack_class is None:
             pack_class = GenericPacket(id)
 
-        return pack_class.unpack(data, ctx=self.ctx)
+        packet        = pack_class.unpack(data, ctx=self.ctx)
+        packet_holder = self.specific_reads.get(pack_class)
+
+        if packet_holder is not None:
+            packet_holder.set(packet)
+            del self.specific_reads[pack_class]
+
+        return packet
 
     async def write_packet(self, packet, **kwargs):
         """
