@@ -40,6 +40,10 @@ class Server(PacketHandler):
             self.name = None
             self.uuid = None
 
+        @property
+        def is_player(self):
+            return self.current_state == enums.State.Play
+
         async def wait_closed(self):
             if self.central_task is not None:
                 await self.central_task
@@ -241,14 +245,8 @@ class Server(PacketHandler):
             self.close()
 
     @property
-    def online_players(self):
-        num = 0
-
-        for c in self.connections:
-            if c.current_state == enums.State.Play:
-                num += 1
-
-        return num
+    def players(self):
+        return [x for x in self.connections if x.is_player]
 
     # Default packet listeners and tasks
 
@@ -265,7 +263,7 @@ class Server(PacketHandler):
 
                 players = {
                     "max":    self.max_players,
-                    "online": self.online_players,
+                    "online": len(self.players),
                     "sample": [],
                 },
 
@@ -290,7 +288,7 @@ class Server(PacketHandler):
 
             return
 
-        if self.online_players >= self.max_players:
+        if len(self.players) >= self.max_players:
             await c.disconnect({
                 "translate": "multiplayer.disconnect.server_full",
             })
@@ -339,7 +337,7 @@ class Server(PacketHandler):
         c.reader = encryption.EncryptedFileObject(c.reader, cipher.decryptor(), None)
         c.writer = encryption.EncryptedFileObject(c.writer, None, cipher.encryptor())
 
-        if self.connections.count(c) > 1:
+        if c in self.players:
             await c.disconnect({
                 "translate": "multiplayer.disconnect.duplicate_login",
             })
