@@ -188,6 +188,12 @@ class Chat(Type):
         def __repr__(self):
             return f"{type(self).__name__}({self.dict()})"
 
+    def __set__(self, instance, value):
+        if not isinstance(value, self.Chat):
+            value = self.Chat(value)
+
+        super().__set__(instance, value)
+
     @classmethod
     def default(cls, *, ctx=None):
         # deepcopy makes it recurse forever and ever amen

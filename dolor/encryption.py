@@ -32,13 +32,13 @@ def format_public_key(public_key):
     return public_key.public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
 
 def gen_private_public_keys():
-    private_key = generate_private_key(65537, 1024)
+    private_key = generate_private_key(0x10001, 1024)
     public_key  = private_key.public_key()
 
     return private_key, format_public_key(public_key)
 
 def gen_verify_token():
-    return os.urandom(4)
+    return os.urandom(0x4)
 
 def decrypt_secret_and_token(private_key, enc_secret, enc_token):
     shared_secret = private_key.decrypt(bytes(enc_secret), PKCS1v15())

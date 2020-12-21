@@ -17,6 +17,9 @@ class ResponsePacket(Base):
 
                     self.favicon = raw.get("favicon")
                 else:
+                    if not isinstance(description, Chat.Chat):
+                        description = Chat.Chat(description)
+
                     self.version     = version
                     self.players     = players
                     self.description = description

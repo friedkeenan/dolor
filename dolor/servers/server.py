@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import base64
 import uuid
+import time
 
 from .. import util
 from .. import enums
@@ -11,6 +12,13 @@ from ..packet_handler import packet_listener, PacketHandler
 from ..versions import Version
 from ..types import Chat
 from ..packets import PacketContext, ServerboundPacket, serverbound, clientbound
+
+def connection_task(func):
+    """Decorator for connection tasks within a class."""
+
+    func._connection_task = True
+
+    return func
 
 class Server(PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
@@ -27,13 +35,18 @@ class Server(PacketHandler):
 
             self.should_listen_sequentially = True
 
+            self.central_task = None
+
             self.name = None
             self.uuid = None
 
-        async def disconnect(self, reason):
-            if not isinstance(reason, Chat.Chat):
-                reason = Chat.Chat(reason)
+        async def wait_closed(self):
+            if self.central_task is not None:
+                await self.central_task
 
+            await super().wait_closed()
+
+        async def disconnect(self, reason):
             if self.current_state == enums.State.Login:
                 packet = clientbound.DisconnectLoginPacket
             else:
@@ -46,6 +59,9 @@ class Server(PacketHandler):
             self.close()
             # TODO: Should we wait for the connection to be closed?
             await self.wait_closed()
+
+        def __eq__(self, other):
+            return self.uuid == other.uuid
 
         def __repr__(self):
             return f"{type(self).__name__}({repr(self.name)}, {repr(self.uuid)})"
@@ -75,9 +91,6 @@ class Server(PacketHandler):
 
         self.max_players = max_players
 
-        if not isinstance(description, Chat.Chat):
-            description = Chat.Chat(description)
-
         if favicon is not None:
             if util.is_pathlike(favicon):
                 with open(favicon, "rb") as f:
@@ -91,7 +104,44 @@ class Server(PacketHandler):
 
         self.comp_threshold = comp_threshold
 
+        self.connection_tasks = []
+        self.register_intrinsic_connection_tasks()
+
         super().__init__()
+
+    def register_connection_task(self, func):
+        """
+        Registers a packet listener.
+
+        func is a coroutine function.
+        """
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError(f"Connection task {func.__name__} isn't a coroutine function")
+
+        self.connection_tasks.append(func)
+
+    def unregister_connection_task(self, func):
+        """Unregisters a connection task."""
+
+        self.connection_tasks.remove(func)
+
+    def external_connection_task(self, func):
+        """Decorator for external connection tasks."""
+
+        self.register_connection_task(func)
+
+        return func
+
+    def register_intrinsic_connection_tasks(self):
+        for attr in dir(self):
+            func = getattr(self, attr)
+
+            # If the function was decorated with
+            # the connection_task function, then
+            # it will have the _connection_task
+            # attribute, which will also be true
+            if hasattr(func, "_connection_task") and func._connection_task:
+                self.register_connection_task(func)
 
     async def send_server_hash(self, c, server_hash):
         async with aiohttp.ClientSession() as s:
@@ -107,26 +157,6 @@ class Server(PacketHandler):
                 c.uuid = uuid.UUID(hex=data["id"])
 
                 return True
-
-    async def new_connection(self, reader, writer):
-        c = self.Connection(self, reader, writer)
-        self.connections.append(c)
-
-        while self.srv.is_serving():
-            if not await self.listen_step(c):
-                self.connections.remove(c)
-
-                return
-
-    async def connection_task(self, c):
-        print("Logged in:", c)
-
-        # TODO: Fill this out I guess
-        await c.write_packet(clientbound.JoinGamePacket)
-
-    async def main_task(self):
-        while self.is_serving():
-            await asyncio.sleep(1)
 
     async def listen_step(self, c):
         p = await c.read_packet()
@@ -146,23 +176,63 @@ class Server(PacketHandler):
 
         return True
 
+    async def new_connection(self, reader, writer):
+        c = self.Connection(self, reader, writer)
+        self.connections.append(c)
+
+        while self.is_serving():
+            if not await self.listen_step(c):
+                break
+
+        self.connections.remove(c)
+
+    async def central_connection_task(self, c):
+        print("Logged in:", c)
+
+        await asyncio.gather(*(x(c) for x in self.connection_tasks))
+
+    async def main_task(self):
+        while self.is_serving():
+            await asyncio.sleep(1)
+
     def is_serving(self):
         return self.srv is not None and self.srv.is_serving()
 
     def close(self):
         if self.srv is not None:
+            for c in self.connections:
+                c.close()
+
+            self.connections.clear()
+
             self.srv.close()
 
     async def wait_closed(self):
-        await self.srv.wait_closed()
+        if self.srv is not None:
+            await self.srv.wait_closed()
 
-    async def start(self):
+    def __del__(self):
+        self.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, exc_tb):
+        self.close()
+        await self.wait_closed()
+
+    async def on_start(self):
+        async with self:
+            await self.main_task()
+
+    async def startup(self):
         self.private_key, self.public_key = encryption.gen_private_public_keys()
 
         self.srv = await asyncio.start_server(self.new_connection, self.address, self.port)
 
-        async with self.srv:
-            await self.main_task()
+    async def start(self):
+        await self.startup()
+        await self.on_start()
 
     def run(self):
         try:
@@ -170,7 +240,17 @@ class Server(PacketHandler):
         except KeyboardInterrupt:
             self.close()
 
-    # Default packet listeners
+    @property
+    def online_players(self):
+        num = 0
+
+        for c in self.connections:
+            if c.current_state == enums.State.Play:
+                num += 1
+
+        return num
+
+    # Default packet listeners and tasks
 
     @packet_listener(serverbound.HandshakePacket)
     async def _on_handshake(self, c, p):
@@ -185,7 +265,7 @@ class Server(PacketHandler):
 
                 players = {
                     "max":    self.max_players,
-                    "online": len(self.connections),
+                    "online": self.online_players,
                     "sample": [],
                 },
 
@@ -206,6 +286,18 @@ class Server(PacketHandler):
             await c.disconnect({
                 "translate": "multiplayer.disconnect.outdated_client",
                 "with":      [self.version.name],
+            })
+
+            return
+
+        if self.online_players >= self.max_players:
+            await c.disconnect({
+                "translate": "multiplayer.disconnect.server_full",
+            })
+
+        if p.name in (x.name for x in self.connections):
+            await c.disconnect({
+                "translate": "multiplayer.disconnect.name_taken",
             })
 
             return
@@ -247,6 +339,13 @@ class Server(PacketHandler):
         c.reader = encryption.EncryptedFileObject(c.reader, cipher.decryptor(), None)
         c.writer = encryption.EncryptedFileObject(c.writer, None, cipher.encryptor())
 
+        if self.connections.count(c) > 1:
+            await c.disconnect({
+                "translate": "multiplayer.disconnect.duplicate_login",
+            })
+
+            return
+
         await c.write_packet(clientbound.SetCompressionPacket,
             threshold = self.comp_threshold,
         )
@@ -258,6 +357,45 @@ class Server(PacketHandler):
             username = c.name,
         )
 
-        c.current_state = enums.State.Play
+        c.current_state              = enums.State.Play
+        c.should_listen_sequentially = False
 
-        await self.connection_task(c)
+        c.central_task = asyncio.create_task(self.central_connection_task(c))
+
+    @connection_task
+    async def _join_game_task(self, c):
+        # TODO: Fill this out I guess
+        await c.write_packet(clientbound.JoinGamePacket)
+
+    @connection_task
+    async def _keep_alive_task(self, c):
+        c.keep_alive_queue = asyncio.Queue()
+        c.last_keep_alive  = time.time()
+
+        while not c.is_closing():
+            if time.time() - c.last_keep_alive > 30:
+                await c.disconnect({
+                    "translate": "disconnect.timeout",
+                })
+
+                return
+
+            keep_alive_id = int(time.time() * 1000)
+            await c.keep_alive_queue.put(keep_alive_id)
+
+            await c.write_packet(clientbound.KeepAlivePacket,
+                keep_alive_id = keep_alive_id,
+            )
+
+            await asyncio.sleep(5)
+
+    @packet_listener(serverbound.KeepAlivePacket)
+    async def _on_keep_alive(self, c, p):
+        if p.keep_alive_id != await c.keep_alive_queue.get():
+            await c.disconnect({
+                "translate": "disconnect.timeout",
+            })
+
+            return
+
+        c.last_keep_alive = time.time()

@@ -16,11 +16,12 @@ class Client(connection.Connection, PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
 
     def __init__(self, version, address, port=25565, *,
+        lang_file = None,
+
         access_token = None,
         client_token = None,
         username     = None,
         password     = None,
-        lang_file    = None,
     ):
         version  = Version(version, check_supported=True)
         self.ctx = PacketContext(version)
@@ -77,9 +78,11 @@ class Client(connection.Connection, PacketHandler):
     async def on_start(self):
         await self.login()
 
-    async def start(self):
+    async def startup(self):
         self.reader, self.writer = await asyncio.open_connection(self.address, self.port)
 
+    async def start(self):
+        await self.startup()
         await self.on_start()
 
     def run(self):

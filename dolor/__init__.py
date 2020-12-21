@@ -11,5 +11,7 @@ from . import clients
 from . import servers
 
 from .packet_handler import packet_listener
+from .servers import connection_task
+
 from .clients import Client
 from .servers import Server

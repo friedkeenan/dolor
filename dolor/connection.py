@@ -75,6 +75,9 @@ class Connection:
     async def wait_closed(self):
         await self.writer.wait_closed()
 
+    def __del__(self):
+        self.close()
+
     def create_packet(self, pack_class, **kwargs):
         """
         Utility method for creating a packet
@@ -172,4 +175,6 @@ class Connection:
         data = VarInt.pack(len(data), ctx=self.ctx) + data
 
         self.writer.write(data)
+
+    async def drain(self):
         await self.writer.drain()
