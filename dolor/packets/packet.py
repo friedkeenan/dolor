@@ -13,18 +13,19 @@ class PacketContext:
     def __eq__(self, other):
         return self.version == other.version
 
-class PacketMeta(type):
-    def __init__(self, name, bases, namespace):
-        super().__init__(name, bases, namespace)
-
-        if hasattr(self, "__annotations__"):
-            for attr, attr_type in self.__annotations__.items():
-                setattr(self, attr, attr_type(_name=attr))
-        else:
-            self.__annotations__ = {}
-
-class Packet(metaclass=PacketMeta):
+class Packet:
     id = None
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if hasattr(cls, "__annotations__"):
+            for attr, attr_type in cls.__annotations__.items():
+                # Change this so type's constructor calls __set_name__?
+                setattr(cls, attr, attr_type(_name=attr))
+        else:
+            cls.__annotations__ = {}
 
     def __init__(self, *, buf=None, ctx=None, **kwargs):
         if buf is not None and isinstance(buf, (bytes, bytearray)):

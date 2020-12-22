@@ -33,7 +33,7 @@ class Type(abc.ABC):
     def __init__(self, *, _name=None):
         self._name = _name
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner=None):
         if instance is None:
             return self
 
