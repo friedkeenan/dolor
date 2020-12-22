@@ -21,13 +21,7 @@ class TypeContext:
     def __eq__(self, other):
         return self.version == other.version and self.instance is other.instance
 
-class TypeMeta(abc.ABCMeta):
-    def __getitem__(self, index):
-        from .array import Array
-
-        return Array(self, index)
-
-class Type(metaclass=TypeMeta):
+class Type(abc.ABC):
     _default = None
 
     def __new__(cls, *args, **kwargs):
@@ -47,6 +41,12 @@ class Type(metaclass=TypeMeta):
 
     def __set__(self, instance, value):
         instance._set_field(self._name, value)
+
+    @classmethod
+    def __class_getitem__(cls, index):
+        from .array import Array
+
+        return Array(cls, index)
 
     @classmethod
     def default(cls, *, ctx=None):

@@ -75,7 +75,28 @@ class Packet(metaclass=PacketMeta):
 
         return cls.id
 
-class GenericPacket(Packet):
+class GenericPacketMeta(PacketMeta):
+    """Used for overriding issubclass and isinstance checks."""
+
+    def __subclasscheck__(self, subclass):
+        if type(subclass) is not type(self):
+            return False
+
+        if self.id is None:
+            return True
+
+        return self.id == subclass.id
+
+    def __instancecheck__(self, instance):
+        return issubclass(type(instance), self)
+
+    def __eq__(self, other):
+        if not issubclass(other, GenericPacket):
+            return False
+
+        return self.id == other.id
+
+class GenericPacket(Packet, metaclass=GenericPacketMeta):
     data: RawByte[None]
 
     def __new__(cls, id=None, **kwargs):

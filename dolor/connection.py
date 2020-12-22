@@ -87,13 +87,26 @@ class Connection:
 
         return pack_class(ctx=self.ctx, **kwargs)
 
+    def dispatch_packet(self, packet):
+        to_remove = []
+
+        for pack_class, holder in self.specific_reads.items():
+            if isinstance(packet, pack_class):
+                holder.set(packet)
+                to_remove.append(pack_class)
+
+        for pack_class in to_remove:
+            self.specific_reads.pop(pack_class)
+
     async def read_packet(self, read_class=None):
         """
         Reads a packet.
 
         If read_class is not None, then
         it will return the next packet
-        of that class.
+        of that class. Requires this
+        function to be called with no
+        arguments elsewhere to work.
 
         Will return None and close the
         connection if eof is reached.
@@ -160,12 +173,9 @@ class Connection:
         if pack_class is None:
             pack_class = GenericPacket(id)
 
-        packet        = pack_class.unpack(data, ctx=self.ctx)
-        packet_holder = self.specific_reads.get(pack_class)
+        packet = pack_class.unpack(data, ctx=self.ctx)
 
-        if packet_holder is not None:
-            packet_holder.set(packet)
-            del self.specific_reads[pack_class]
+        self.dispatch_packet(packet)
 
         return packet
 
