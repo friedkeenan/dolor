@@ -96,6 +96,9 @@ class GenericPacketMeta(PacketMeta):
 
         return self.id == other.id
 
+    def __hash__(self):
+        return hash(self.id)
+
 class GenericPacket(Packet, metaclass=GenericPacketMeta):
     data: RawByte[None]
 
