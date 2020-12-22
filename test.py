@@ -7,7 +7,7 @@ from aioconsole import aprint
 import config
 
 class MyClient(dolor.clients.ChatClient, dolor.clients.RespawnClient):
-    should_send_input = True
+    send_input = True
 
     @dolor.packet_listener(clientbound.RespawnPacket)
     async def on_respawn(self, p):

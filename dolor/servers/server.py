@@ -79,6 +79,19 @@ class Server(PacketHandler):
                 if self.central_task is not None:
                     await self.central_task
 
+        async def write_packet(self, *args, **kwargs):
+            p = await super().write_packet(*args, **kwargs)
+
+            listeners = self.server.listeners_for_packet(self, p, outgoing=True)
+
+            if self.should_listen_sequentially:
+                await asyncio.gather(*(x(self, p) for x in listeners))
+            else:
+                for func in listeners:
+                    asyncio.create_task(func(self, p))
+
+            return p
+
         def __eq__(self, other):
             return self.uuid == other.uuid
 
@@ -162,6 +175,19 @@ class Server(PacketHandler):
             if hasattr(func, "_connection_task") and func._connection_task:
                 self.register_connection_task(func)
 
+    async def listen_step(self, c):
+        p = await c.read_packet()
+        if p is None:
+            return
+
+        listeners = self.listeners_for_packet(c, p, outgoing=False)
+
+        if c.should_listen_sequentially:
+            await asyncio.gather(*(x(c, p) for x in listeners))
+        else:
+            for func in listeners:
+                asyncio.create_task(func(c, p))
+
     async def send_server_hash(self, c, server_hash):
         async with aiohttp.ClientSession() as s:
             async with s.get(
@@ -177,24 +203,6 @@ class Server(PacketHandler):
 
                 return True
 
-    async def listen_step(self, c):
-        p = await c.read_packet()
-        if p is None:
-            return False
-
-        tasks = []
-        for func, checker in self.packet_listeners.items():
-            if checker(c, p):
-                if c.should_listen_sequentially:
-                    tasks.append(func(c, p))
-                else:
-                    asyncio.create_task(func(c, p))
-
-        if c.should_listen_sequentially:
-            await asyncio.gather(*tasks)
-
-        return True
-
     def append(self, c):
         self.connections.append(c)
 
@@ -205,9 +213,8 @@ class Server(PacketHandler):
         c = self.Connection(self, reader, writer)
         self.append(c)
 
-        while self.is_serving():
-            if not await self.listen_step(c):
-                break
+        while self.is_serving() and not c.is_closing():
+            await self.listen_step(c)
 
         self.remove(c)
 

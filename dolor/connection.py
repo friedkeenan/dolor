@@ -67,10 +67,10 @@ class Connection:
             pass
 
     def is_closing(self):
-        return self.writer.is_closing()
+        return self.writer is not None and self.writer.is_closing()
 
     def close(self):
-        if not self.is_closing():
+        if self.writer is not None:
             self.writer.close()
 
     async def wait_closed(self):
@@ -113,7 +113,6 @@ class Connection:
         """
 
         if read_class is not None:
-            # TODO: Handle generic packets maybe?
             packet_holder = self.specific_reads.get(read_class)
 
             if packet_holder is None:
@@ -183,6 +182,8 @@ class Connection:
         """
         Writes a packet.
 
+        Returns the written packet.
+
         packet can be either a Packet object,
         or it can be a Packet class, and then
         the sent packet will be made using that
@@ -212,6 +213,8 @@ class Connection:
         data = VarInt.pack(len(data), ctx=self.ctx) + data
 
         self.writer.write(data)
+
+        return packet
 
     async def drain(self):
         await self.writer.drain()

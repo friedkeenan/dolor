@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import time
+from aioconsole import aprint
 
 from .. import enums
 from .. import util
@@ -45,6 +46,32 @@ class Client(connection.Connection, PacketHandler):
         connection.Connection.__init__(self, ClientboundPacket)
         PacketHandler.__init__(self)
 
+    async def write_packet(self, *args, **kwargs):
+        p = await super().write_packet(*args, **kwargs)
+
+        listeners = self.listeners_for_packet(self, p, outgoing=True)
+
+        if self.should_listen_sequentially:
+            await asyncio.gather(*(x(p) for x in listeners))
+        else:
+            for func in listeners:
+                asyncio.create_task(func(p))
+
+        return p
+
+    async def listen_step(self):
+        p = await self.read_packet()
+        if p is None:
+            return
+
+        listeners = self.listeners_for_packet(self, p, outgoing=False)
+
+        if self.should_listen_sequentially:
+            await asyncio.gather(*(x(p) for x in listeners))
+        else:
+            for func in listeners:
+                asyncio.create_task(func(p))
+
     async def send_server_hash(self, server_hash):
         async with aiohttp.ClientSession() as s:
             async with s.post(f"{self.session_server}/join",
@@ -57,23 +84,6 @@ class Client(connection.Connection, PacketHandler):
             ) as resp:
                 if resp.status != 204:
                     raise ValueError(f"Invalid status code from session server: {resp.status}")
-
-    async def listen_step(self):
-        p = await self.read_packet()
-        if p is None:
-            return
-
-        tasks = []
-
-        for func, checker in self.packet_listeners.items():
-            if checker(self, p):
-                if self.should_listen_sequentially:
-                    tasks.append(func(p))
-                else:
-                    asyncio.create_task(func(p))
-
-        if self.should_listen_sequentially:
-            await asyncio.gather(*tasks)
 
     async def on_start(self):
         await self.login()
@@ -144,7 +154,7 @@ class Client(connection.Connection, PacketHandler):
 
     @packet_listener(clientbound.DisconnectLoginPacket, clientbound.DisconnectPlayPacket)
     async def _on_disconnect(self, p):
-        print("Disconnected:", p.reason.flatten())
+        await aprint("Disconnected:", p.reason.flatten())
 
         self.close()
         await self.wait_closed()
