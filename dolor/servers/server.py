@@ -3,6 +3,7 @@ import aiohttp
 import base64
 import uuid
 import time
+from aioconsole import aprint
 
 from .. import util
 from .. import enums
@@ -37,14 +38,17 @@ class Server(PacketHandler):
 
             self.central_task = None
 
-            self.name = None
-            self.uuid = None
+            self.name = ""
+            self.uuid = uuid.UUID(int=0)
 
         @property
         def is_player(self):
             return self.current_state == enums.State.Play
 
         async def disconnect(self, reason):
+            if isinstance(reason, Exception):
+                reason = f"{type(reason).__name__}: {reason}"
+
             if self.current_state == enums.State.Login:
                 packet = clientbound.DisconnectLoginPacket
             else:
@@ -57,6 +61,24 @@ class Server(PacketHandler):
             self.close()
             # TODO: Should we wait for the connection to be closed?
             await self.wait_closed()
+
+        async def set_compression(self, threshold):
+            await self.write_packet(clientbound.SetCompressionPacket,
+                threshold = threshold,
+            )
+
+            self.comp_threshold = threshold
+
+        async def login_success(self):
+            await self.write_packet(clientbound.LoginSuccessPacket,
+                uuid     = self.uuid,
+                username = self.name,
+            )
+
+            self.current_state              = enums.State.Play
+            self.should_listen_sequentially = False
+
+            self.central_task = asyncio.create_task(self.server.central_connection_task(self))
 
         async def message(self, message, position=enums.ChatPosition.Chat):
             await self.write_packet(clientbound.ChatMessagePacket(
@@ -105,6 +127,8 @@ class Server(PacketHandler):
         description = None,
         favicon     = None,
 
+        offline        = False,
+        comp_enabled   = True,
         comp_threshold = 256,
     ):
         self.version = Version(version, check_supported=True)
@@ -134,6 +158,8 @@ class Server(PacketHandler):
         self.description = description or Chat.default()
         self.favicon     = favicon
 
+        self.offline        = offline
+        self.comp_enabled   = comp_enabled
         self.comp_threshold = comp_threshold
 
         self.connection_tasks = []
@@ -211,17 +237,24 @@ class Server(PacketHandler):
 
     async def new_connection(self, reader, writer):
         c = self.Connection(self, reader, writer)
-        self.append(c)
 
-        while self.is_serving() and not c.is_closing():
-            await self.listen_step(c)
+        async with c:
+            self.append(c)
 
-        self.remove(c)
+            try:
+                while self.is_serving() and not c.is_closing():
+                    await self.listen_step(c)
+
+            except Exception as e:
+                await c.disconnect(e)
+            finally:
+                self.remove(c)
 
     async def central_connection_task(self, c):
-        print("Logged in:", c)
-
-        await asyncio.gather(*(x(c) for x in self.connection_tasks))
+        try:
+            await asyncio.gather(*(x(c) for x in self.connection_tasks))
+        except Exception as e:
+            await c.disconnect(e)
 
     async def main_task(self):
         while self.is_serving():
@@ -254,8 +287,7 @@ class Server(PacketHandler):
         await self.wait_closed()
 
     async def on_start(self):
-        async with self:
-            await self.main_task()
+        await self.main_task()
 
     async def startup(self):
         self.private_key, self.public_key = encryption.gen_private_public_keys()
@@ -264,7 +296,9 @@ class Server(PacketHandler):
 
     async def start(self):
         await self.startup()
-        await self.on_start()
+
+        async with self:
+            await self.on_start()
 
     def run(self):
         try:
@@ -330,17 +364,28 @@ class Server(PacketHandler):
 
         c.name = p.name
 
-        c.verify_token = encryption.gen_verify_token()
+        if not self.offline:
+            c.verify_token = encryption.gen_verify_token()
 
-        await c.write_packet(clientbound.EncryptionRequestPacket,
-            server_id    = "",
-            public_key   = self.public_key,
-            verify_token = c.verify_token,
-        )
+            await c.write_packet(clientbound.EncryptionRequestPacket,
+                server_id    = "",
+                public_key   = self.public_key,
+                verify_token = c.verify_token,
+            )
+        else:
+            if self.comp_enabled:
+                await c.set_compression(self.comp_threshold)
+
+            await c.login_success()
 
     @packet_listener(serverbound.EncryptionResponsePacket)
     async def _on_encryption_response(self, c, p):
         shared_secret, verify_token = encryption.decrypt_secret_and_token(self.private_key, p.shared_secret, p.verify_token)
+
+        cipher = encryption.gen_cipher(shared_secret)
+
+        c.reader = encryption.EncryptedFileObject(c.reader, cipher.decryptor(), None)
+        c.writer = encryption.EncryptedFileObject(c.writer, None, cipher.encryptor())
 
         if verify_token != c.verify_token:
             await c.disconnect({
@@ -360,11 +405,6 @@ class Server(PacketHandler):
 
             return
 
-        cipher = encryption.gen_cipher(shared_secret)
-
-        c.reader = encryption.EncryptedFileObject(c.reader, cipher.decryptor(), None)
-        c.writer = encryption.EncryptedFileObject(c.writer, None, cipher.encryptor())
-
         if c in self.players:
             await c.disconnect({
                 "translate": "multiplayer.disconnect.duplicate_login",
@@ -372,24 +412,15 @@ class Server(PacketHandler):
 
             return
 
-        await c.write_packet(clientbound.SetCompressionPacket,
-            threshold = self.comp_threshold,
-        )
+        if self.comp_enabled:
+            await c.set_compression(self.comp_threshold)
 
-        c.comp_threshold = self.comp_threshold
-
-        await c.write_packet(clientbound.LoginSuccessPacket,
-            uuid     = c.uuid,
-            username = c.name,
-        )
-
-        c.current_state              = enums.State.Play
-        c.should_listen_sequentially = False
-
-        c.central_task = asyncio.create_task(self.central_connection_task(c))
+        await c.login_success()
 
     @connection_task
     async def _join_game_task(self, c):
+        await aprint("Logged in:", c)
+
         # TODO: Fill this out I guess
         await c.write_packet(clientbound.JoinGamePacket)
 

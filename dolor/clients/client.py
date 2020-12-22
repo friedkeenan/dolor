@@ -93,7 +93,9 @@ class Client(connection.Connection, PacketHandler):
 
     async def start(self):
         await self.startup()
-        await self.on_start()
+
+        async with self:
+            await self.on_start()
 
     def run(self):
         try:

@@ -74,10 +74,18 @@ class Connection:
             self.writer.close()
 
     async def wait_closed(self):
-        await self.writer.wait_closed()
+        if self.writer is not None:
+            await self.writer.wait_closed()
 
     def __del__(self):
         self.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, exc_tb):
+        self.close()
+        await self.wait_closed()
 
     def create_packet(self, pack_class, **kwargs):
         """
