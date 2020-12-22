@@ -76,7 +76,7 @@ class Packet:
 
         return cls.id
 
-class GenericPacketMeta(PacketMeta):
+class GenericPacketMeta(type):
     """Used for overriding issubclass and isinstance checks."""
 
     def __subclasscheck__(self, subclass):
