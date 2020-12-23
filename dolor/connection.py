@@ -87,6 +87,12 @@ class Connection:
         self.close()
         await self.wait_closed()
 
+    def enable_encryption(self, shared_secret):
+        cipher = encryption.gen_cipher(shared_secret)
+
+        self.reader = encryption.EncryptedFileObject(self.reader, cipher.decryptor(), None)
+        self.writer = encryption.EncryptedFileObject(self.writer, None, cipher.encryptor())
+
     def create_packet(self, pack_class, **kwargs):
         """
         Utility method for creating a packet
@@ -221,6 +227,7 @@ class Connection:
         data = VarInt.pack(len(data), ctx=self.ctx) + data
 
         self.writer.write(data)
+        await self.drain()
 
         return packet
 

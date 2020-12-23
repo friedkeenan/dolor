@@ -66,6 +66,9 @@ class EncryptedFileObject:
     async def drain(self):
         await self.f.drain()
 
+    def write_eof(self):
+        self.f.write_eof()
+
     def is_closing(self):
         return self.f.is_closing()
 

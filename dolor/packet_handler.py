@@ -88,7 +88,3 @@ class PacketHandler(abc.ABC):
 
     def listeners_for_packet(self, c, p, *, outgoing):
         return [x for x, y in self.packet_listeners.items() if y[1] == outgoing and y[0](c, p)]
-
-    @abc.abstractmethod
-    async def listen_step(self):
-        raise NotImplementedError

@@ -6,13 +6,12 @@ import time
 from aioconsole import aprint
 
 from .. import util
-from .. import enums
 from .. import encryption
-from .. import connection
 from ..packet_handler import packet_listener, PacketHandler
 from ..versions import Version
 from ..types import Chat
 from ..packets import PacketContext, ServerboundPacket, serverbound, clientbound
+from . import connections
 
 def connection_task(func):
     """Decorator for connection tasks within a class."""
@@ -24,101 +23,7 @@ def connection_task(func):
 class Server(PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
 
-    class Connection(connection.Connection):
-        def __init__(self, server, reader, writer):
-            self.ctx = PacketContext(Version(None))
-
-            super().__init__(ServerboundPacket)
-
-            self.server = server
-            self.reader = reader
-            self.writer = writer
-
-            self.should_listen_sequentially = True
-
-            self.central_task = None
-
-            self.name = ""
-            self.uuid = uuid.UUID(int=0)
-
-        @property
-        def is_player(self):
-            return self.current_state == enums.State.Play
-
-        async def disconnect(self, reason):
-            if isinstance(reason, Exception):
-                reason = f"{type(reason).__name__}: {reason}"
-
-            if self.current_state == enums.State.Login:
-                packet = clientbound.DisconnectLoginPacket
-            else:
-                packet = clientbound.DisconnectPlayPacket
-
-            await self.write_packet(packet,
-                reason = reason,
-            )
-
-            self.close()
-            # TODO: Should we wait for the connection to be closed?
-            await self.wait_closed()
-
-        async def set_compression(self, threshold):
-            await self.write_packet(clientbound.SetCompressionPacket,
-                threshold = threshold,
-            )
-
-            self.comp_threshold = threshold
-
-        async def login_success(self):
-            await self.write_packet(clientbound.LoginSuccessPacket,
-                uuid     = self.uuid,
-                username = self.name,
-            )
-
-            self.current_state              = enums.State.Play
-            self.should_listen_sequentially = False
-
-            self.central_task = asyncio.create_task(self.server.central_connection_task(self))
-
-        async def message(self, message, position=enums.ChatPosition.Chat):
-            await self.write_packet(clientbound.ChatMessagePacket(
-                data     = message,
-                position = position,
-                sender   = self.uuid,
-            ))
-
-        def close(self):
-            if not self.is_closing():
-                super().close()
-
-                if self.central_task is not None:
-                    self.central_task.cancel()
-
-        async def wait_closed(self):
-            if self.is_closing():
-                await super().wait_closed()
-
-                if self.central_task is not None:
-                    await self.central_task
-
-        async def write_packet(self, *args, **kwargs):
-            p = await super().write_packet(*args, **kwargs)
-
-            listeners = self.server.listeners_for_packet(self, p, outgoing=True)
-
-            if self.should_listen_sequentially:
-                await asyncio.gather(*(x(self, p) for x in listeners))
-            else:
-                for func in listeners:
-                    asyncio.create_task(func(self, p))
-
-            return p
-
-        def __eq__(self, other):
-            return self.uuid == other.uuid
-
-        def __repr__(self):
-            return f"{type(self).__name__}({repr(self.name)}, {repr(self.uuid)})"
+    Connection = connections.Connection
 
     def __init__(self, version, address, port=25565, *,
         lang_file = None,
@@ -201,60 +106,51 @@ class Server(PacketHandler):
             if hasattr(func, "_connection_task") and func._connection_task:
                 self.register_connection_task(func)
 
-    async def listen_step(self, c):
-        p = await c.read_packet()
-        if p is None:
-            return
+    def safe_connection_func(self, task):
+        async def safe(c, *args, **kwargs):
+            try:
+                await task(c, *args, **kwargs)
+            except Exception as e:
+                await c.disconnect(e)
 
-        listeners = self.listeners_for_packet(c, p, outgoing=False)
+        return safe
+
+    async def listen_to_packet(self, c, p, *, outgoing):
+        listeners = self.listeners_for_packet(c, p, outgoing=outgoing)
+        listeners = [self.safe_connection_func(x) for x in listeners]
 
         if c.should_listen_sequentially:
             await asyncio.gather(*(x(c, p) for x in listeners))
         else:
             for func in listeners:
-                asyncio.create_task(func(c, p))
+                c.create_task(func(c, p))
 
-    async def send_server_hash(self, c, server_hash):
-        async with aiohttp.ClientSession() as s:
-            async with s.get(
-                f"{self.session_server}/hasJoined?username={c.name}&serverId={server_hash}",
-            ) as resp:
-                if resp.status == 204:
-                    return False
+    async def listen(self, c):
+        while self.is_serving() and not c.is_closing():
+            p = await c.read_packet()
+            if p is None:
+                break
 
-                # TODO: Verify signature?
+            await self.listen_to_packet(c, p, outgoing=False)
 
-                data   = await resp.json()
-                c.uuid = uuid.UUID(hex=data["id"])
-
-                return True
-
-    def append(self, c):
-        self.connections.append(c)
-
-    def remove(self, c):
-        self.connections.remove(c)
+        try:
+            await asyncio.wait_for(asyncio.gather(*c.tasks), 1)
+        except asyncio.TimeoutError:
+            for task in c.tasks:
+                task.cancel()
 
     async def new_connection(self, reader, writer):
         c = self.Connection(self, reader, writer)
 
         async with c:
             self.append(c)
-
-            try:
-                while self.is_serving() and not c.is_closing():
-                    await self.listen_step(c)
-
-            except Exception as e:
-                await c.disconnect(e)
-            finally:
-                self.remove(c)
+            await self.listen(c)
+            self.remove(c)
 
     async def central_connection_task(self, c):
-        try:
-            await asyncio.gather(*(x(c) for x in self.connection_tasks))
-        except Exception as e:
-            await c.disconnect(e)
+        tasks = [self.safe_connection_func(x) for x in self.connection_tasks]
+
+        await asyncio.gather(*(x(c) for x in tasks))
 
     async def main_task(self):
         while self.is_serving():
@@ -286,6 +182,12 @@ class Server(PacketHandler):
         self.close()
         await self.wait_closed()
 
+    def append(self, c):
+        self.connections.append(c)
+
+    def remove(self, c):
+        self.connections.remove(c)
+
     async def on_start(self):
         await self.main_task()
 
@@ -309,6 +211,21 @@ class Server(PacketHandler):
     @property
     def players(self):
         return [x for x in self.connections if x.is_player]
+
+    async def send_server_hash(self, c, server_hash):
+        async with aiohttp.ClientSession() as s:
+            async with s.get(
+                f"{self.session_server}/hasJoined?username={c.name}&serverId={server_hash}",
+            ) as resp:
+                if resp.status == 204:
+                    return False
+
+                # TODO: Verify signature?
+
+                data   = await resp.json()
+                c.uuid = uuid.UUID(hex=data["id"])
+
+                return True
 
     # Default packet listeners and tasks
 
@@ -381,11 +298,7 @@ class Server(PacketHandler):
     @packet_listener(serverbound.EncryptionResponsePacket)
     async def _on_encryption_response(self, c, p):
         shared_secret, verify_token = encryption.decrypt_secret_and_token(self.private_key, p.shared_secret, p.verify_token)
-
-        cipher = encryption.gen_cipher(shared_secret)
-
-        c.reader = encryption.EncryptedFileObject(c.reader, cipher.decryptor(), None)
-        c.writer = encryption.EncryptedFileObject(c.writer, None, cipher.encryptor())
+        c.enable_encryption(shared_secret)
 
         if verify_token != c.verify_token:
             await c.disconnect({

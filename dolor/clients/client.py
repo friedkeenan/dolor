@@ -41,49 +41,55 @@ class Client(connection.Connection, PacketHandler):
             Chat.Chat.load_translations(lang_file)
 
         self.should_listen_sequentially = True
+        self.tasks = []
 
         # TODO: Figure out a way to do this with super
         connection.Connection.__init__(self, ClientboundPacket)
         PacketHandler.__init__(self)
 
+    def create_task(self, coro):
+        """Internal function used to ensure that all listeners complete."""
+
+        real_task = asyncio.create_task(coro)
+        self.tasks.append(real_task)
+
+        async def task():
+            try:
+                await real_task
+            finally:
+                self.tasks.remove(real_task)
+
+        return asyncio.create_task(task())
+
+    async def listen_to_packet(self, p, *, outgoing):
+        listeners = self.listeners_for_packet(self, p, outgoing=outgoing)
+
+        if self.should_listen_sequentially:
+            await asyncio.gather(*(x(p) for x in listeners))
+        else:
+            for func in listeners:
+                self.create_task(func(p))
+
     async def write_packet(self, *args, **kwargs):
         p = await super().write_packet(*args, **kwargs)
 
-        listeners = self.listeners_for_packet(self, p, outgoing=True)
-
-        if self.should_listen_sequentially:
-            await asyncio.gather(*(x(p) for x in listeners))
-        else:
-            for func in listeners:
-                asyncio.create_task(func(p))
+        await self.listen_to_packet(p, outgoing=True)
 
         return p
 
-    async def listen_step(self):
-        p = await self.read_packet()
-        if p is None:
-            return
+    async def listen(self):
+        while not self.is_closing():
+            p = await self.read_packet()
+            if p is None:
+                break
 
-        listeners = self.listeners_for_packet(self, p, outgoing=False)
+            await self.listen_to_packet(p, outgoing=False)
 
-        if self.should_listen_sequentially:
-            await asyncio.gather(*(x(p) for x in listeners))
-        else:
-            for func in listeners:
-                asyncio.create_task(func(p))
-
-    async def send_server_hash(self, server_hash):
-        async with aiohttp.ClientSession() as s:
-            async with s.post(f"{self.session_server}/join",
-                json = {
-                    "accessToken":     self.auth_token.access_token,
-                    "selectedProfile": self.auth_token.profile.id,
-                    "serverId":        server_hash,
-                },
-                headers = {"content-type": "application/json"},
-            ) as resp:
-                if resp.status != 204:
-                    raise ValueError(f"Invalid status code from session server: {resp.status}")
+        try:
+            await asyncio.wait_for(asyncio.gather(*self.tasks), 1)
+        except asyncio.TimeoutError:
+            for task in self.tasks:
+                task.cancel()
 
     async def on_start(self):
         await self.login()
@@ -102,6 +108,19 @@ class Client(connection.Connection, PacketHandler):
             asyncio.run(self.start())
         except KeyboardInterrupt:
             self.close()
+
+    async def send_server_hash(self, server_hash):
+        async with aiohttp.ClientSession() as s:
+            async with s.post(f"{self.session_server}/join",
+                json = {
+                    "accessToken":     self.auth_token.access_token,
+                    "selectedProfile": self.auth_token.profile.id,
+                    "serverId":        server_hash,
+                },
+                headers = {"content-type": "application/json"},
+            ) as resp:
+                if resp.status != 204:
+                    raise ValueError(f"Invalid status code from session server: {resp.status}")
 
     async def status(self):
         if self.current_state != enums.State.Handshaking:
@@ -149,8 +168,7 @@ class Client(connection.Connection, PacketHandler):
             name = self.auth_token.profile.name,
         )
 
-        while not self.is_closing():
-            await self.listen_step()
+        await self.listen()
 
     # Default packet listeners
 
@@ -175,10 +193,7 @@ class Client(connection.Connection, PacketHandler):
             verify_token  = enc_token,
         )
 
-        cipher = encryption.gen_cipher(shared_secret)
-
-        self.reader = encryption.EncryptedFileObject(self.reader, cipher.decryptor(), None)
-        self.writer = encryption.EncryptedFileObject(self.writer, None, cipher.encryptor())
+        self.enable_encryption(shared_secret)
 
     @packet_listener(clientbound.SetCompressionPacket)
     async def _on_set_compression(self, p):
