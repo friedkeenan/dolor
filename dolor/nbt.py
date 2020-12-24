@@ -52,11 +52,15 @@ class Tag(abc.ABC):
         else:
             root_name = None
 
-        return cls(cls._unpack(buf), root_name=root_name)
+        ret = cls._unpack(buf)
+
+        ret.root_name = root_name
+
+        return ret
 
     @classmethod
     def _unpack(cls, buf):
-        return cls.type.unpack(buf)
+        return cls(cls.type.unpack(buf))
 
     @classmethod
     def _pack(cls, value):
@@ -103,57 +107,49 @@ class String(Tag):
 class List(Tag):
     id = 9
 
-    def __init__(self, tag, value=None, *, root_name=None):
+    tag = None
+
+    def __new__(cls, tag_or_value=None, *args, **kwargs):
+        if not isinstance(tag_or_value, type):
+            if cls.tag is None:
+                raise TypeError(f"Use of {cls.__name__} without setting its tag")
+
+            return super().__new__(cls)
+
+        return type(f"{cls.__name__}({tag_or_value.__name__})", (cls,), dict(
+            tag = tag_or_value,
+        ))
+
+    def __init__(self, value=None, *, root_name=None):
         if value is None:
             value = []
 
-        self.tag       = tag
         self.value     = value
         self.root_name = root_name
-
-    def pack(self):
-        if self.root_name is not None:
-            return String(self.root_name).pack() + self._pack(self.tag, self.value)
-
-        return self._pack(self.tag, self.value)
 
     def __getitem__(self, index):
         return self.value[index]
 
-    def __repr__(self):
-        ret = f"{type(self).__name__}("
+    def __setitem__(self, index, value):
+        self.value[index] = value
 
-        if self.root_name is not None:
-            ret += f"root_name={repr(self.root_name)}, "
-
-        return ret + f"{self.tag.__name__}, {repr(self.value)})"
-
-    @classmethod
-    def unpack(cls, buf, *, root=False):
-        if isinstance(buf, (bytes, bytearray)):
-            buf = io.BytesIO(buf)
-
-        if root:
-            root_name = String.unpack(buf).value
-        else:
-            root_name = None
-
-        tag, value = cls._unpack(buf)
-
-        return cls(tag, value, root_name=root_name)
+    def __delitem__(self, index):
+        del self.value[index]
 
     @classmethod
     def _unpack(cls, buf):
         id  = types.UnsignedByte.unpack(buf)
         tag = Tag.from_id(id)
 
+        new_cls = cls(tag)
+
         size = Int.unpack(buf).value
 
-        return tag, [tag.unpack(buf).value for x in range(size)]
+        return new_cls([tag.unpack(buf).value for x in range(size)])
 
     @classmethod
-    def _pack(cls, tag, value):
-        return types.UnsignedByte.pack(tag.id) + Int(len(value)).pack() + b"".join(tag(x).pack() for x in value)
+    def _pack(cls, value):
+        return types.UnsignedByte.pack(cls.tag.id) + Int(len(value)).pack() + b"".join(cls.tag(x).pack() for x in value)
 
 class Compound(Tag):
     id = 10
@@ -166,7 +162,13 @@ class Compound(Tag):
         self.root_name = root_name
 
     def __getitem__(self, key):
-        return self.values[key]
+        return self.value[key]
+
+    def __setitem__(self, key, value):
+        self.value[key] = value
+
+    def __delitem__(self, key):
+        del self.value[key]
 
     @classmethod
     def _unpack(cls, buf):
@@ -177,7 +179,7 @@ class Compound(Tag):
             tag = Tag.from_id(id)
 
             if tag == End:
-                return fields
+                return cls(fields)
 
             name  = String.unpack(buf).value
             value = tag.unpack(buf)

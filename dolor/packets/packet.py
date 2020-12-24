@@ -104,10 +104,10 @@ class GenericPacket(Packet, metaclass=GenericPacketMeta):
     data: RawByte[None]
 
     def __new__(cls, id=None, **kwargs):
-        if id is None and cls.id is None:
-            raise TypeError("Use of GenericPacket without setting its id")
-
         if id is None:
+            if cls.id is None:
+                raise TypeError("Use of GenericPacket without setting its id")
+
             return super().__new__(cls)
 
         return type(f"{cls.__name__}({id:#x})", (cls,), dict(

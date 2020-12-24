@@ -3,7 +3,7 @@ import collections
 from .type import Type
 
 class Compound(Type):
-    elems = None
+    elems      = None
     value_type = None
 
     @classmethod

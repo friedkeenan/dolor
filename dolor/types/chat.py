@@ -82,7 +82,7 @@ class Chat(Type):
                 ret = raw[0]
 
                 if "extra" in ret:
-                    ret["extra"] += raw[1:]
+                    ret["extra"].extend(raw[1:])
                 else:
                     ret["extra"] = raw[1:]
 
@@ -125,7 +125,10 @@ class Chat(Type):
             return False
 
         def __getattr__(self, attr):
-            if self.parent is None:
+            # Use __getattribute__ here to avoid infinite recursion
+            # if self.parent is not set (i.e. in deepcopy's) and so
+            # it will raise an AttributeError in said case.
+            if self.__getattribute__("parent") is None:
                 raise AttributeError
 
             return getattr(self.parent, attr)
@@ -156,6 +159,21 @@ class Chat(Type):
         def dict(self):
             bool_handler = lambda x: ("true" if x else "false")
 
+            def children_handler(children):
+                ret = []
+
+                for c in children:
+                    data = c.dict()
+
+                    # If a child only has a "text" field, then
+                    # it can be turned into just a string
+                    if "text" in data and len(data) == 1:
+                        ret.append(data["text"])
+                    else:
+                        ret.append(data)
+
+                return ret
+
             ret = {}
 
             self.pack_field(ret, "bold",          bool_handler)
@@ -170,7 +188,7 @@ class Chat(Type):
             self.pack_field(ret, "hover_event", key="hoverEvent")
 
             if len(self.extra) > 0:
-                ret["extra"] = [x.dict() for x in self.extra]
+                self.pack_field(ret, "extra", children_handler)
 
             if self.is_string:
                 ret["text"] = self.text
@@ -178,9 +196,12 @@ class Chat(Type):
                 ret["translate"] = self.translate
 
                 if len(self.tr_with) > 0:
-                    ret["with"] = [x.dict() for x in self.tr_with]
+                    self.pack_field(ret, "tr_with", children_handler, key="with")
 
             return ret
+
+        def __eq__(self, other):
+            return self.dict() == other.dict()
 
         def __str__(self):
             return self.flatten()
@@ -188,17 +209,13 @@ class Chat(Type):
         def __repr__(self):
             return f"{type(self).__name__}({self.dict()})"
 
+    _default = Chat("")
+
     def __set__(self, instance, value):
         if not isinstance(value, self.Chat):
             value = self.Chat(value)
 
         super().__set__(instance, value)
-
-    @classmethod
-    def default(cls, *, ctx=None):
-        # deepcopy makes it recurse forever and ever amen
-        # so override the method entirely
-        return cls.Chat({"text": ""})
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
