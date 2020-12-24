@@ -52,11 +52,5 @@ class AttrDict(collections.abc.MutableMapping):
 
         del self._elems[attr]
 
-    # def __eq__(self, other):
-    #     if not isinstance(other, dict):
-    #         other = dict(other)
-
-    #     return self._elems == other
-
     def __repr__(self):
         return f"{type(self).__name__}({self._elems})"
