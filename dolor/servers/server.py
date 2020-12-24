@@ -127,7 +127,13 @@ class Server(PacketHandler):
 
     async def listen(self, c):
         while self.is_serving() and not c.is_closing():
-            p = await c.read_packet()
+            try:
+                p = await c.read_packet()
+            except Exception as e:
+                await c.disconnect(e)
+
+                break
+
             if p is None:
                 break
 

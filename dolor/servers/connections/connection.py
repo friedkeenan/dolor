@@ -38,9 +38,12 @@ class Connection(connection.Connection):
         }.get(self.current_state)
 
         if packet is not None:
-            await self.write_packet(packet,
-                reason = reason,
-            )
+            try:
+                await self.write_packet(packet,
+                    reason = reason,
+                )
+            except:
+                pass
 
         self.close()
         await self.wait_closed()
