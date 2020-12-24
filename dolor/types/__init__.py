@@ -3,7 +3,6 @@ from .simple import *
 from .var_num import *
 from .string import *
 from .chat import *
-from .nbt import *
 from .array import *
 from .vector import *
 from .enum import *
@@ -12,6 +11,13 @@ from .compound import *
 from .optional import *
 from .version_switched import *
 from .misc import *
+
+# .nbt depends on ..nbt, which depends on this module,
+# so only try to import it
+try:
+    from .nbt import *
+except ImportError:
+    pass
 
 # Delete type to stop builtin conflict
 del type

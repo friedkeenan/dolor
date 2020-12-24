@@ -5,7 +5,7 @@ from .misc import RawByte
 
 class Array(Type):
     elem_type = None
-    size = None
+    size      = None
 
     @classmethod
     def is_raw_byte(cls):

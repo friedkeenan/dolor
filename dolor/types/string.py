@@ -4,10 +4,9 @@ from .type import Type
 from .var_num import VarInt
 
 class String(Type):
+    prefix     = VarInt
     max_length = 32767
     length     = None
-
-    prefix = VarInt
 
     encoding = "utf-8"
 

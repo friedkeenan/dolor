@@ -2,7 +2,7 @@ from .type import Type
 
 class BitFlag(Type):
     elem_type = None
-    flags = None
+    flags     = None
 
     class BitFlag:
         def __init__(self, flags, value=0):

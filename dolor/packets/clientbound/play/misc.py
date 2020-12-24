@@ -1,11 +1,29 @@
 from .... import enums
+from .... import nbt
 from ....types import *
 from ...packet import *
 
 class Base(ClientboundPacket, PlayPacket):
     pass
 
-GameModeType = Enum(UnsignedByte, enums.GameMode)
+GameMode = Enum(UnsignedByte, enums.GameMode)
+
+Dimension = NBT.Compound("Dimension",
+    ambient_light    = nbt.Float,
+    logical_height   = nbt.Int,
+    coordinate_scale = nbt.Double,
+    infiniburn       = NBT.Identifier,
+    effects          = NBT.Identifier,
+
+    piglin_safe          = NBT.Boolean,
+    natural              = NBT.Boolean,
+    respawn_anchor_works = NBT.Boolean,
+    has_skylight         = NBT.Boolean,
+    bed_works            = NBT.Boolean,
+    has_raids            = NBT.Boolean,
+    ultrawarm            = NBT.Boolean,
+    has_ceiling          = NBT.Boolean,
+)
 
 class ChatMessagePacket(Base):
     id = 0x0e
@@ -29,11 +47,11 @@ class JoinGamePacket(Base):
 
     entity_id:             Int
     hardcore:              Boolean
-    game_mode:             GameModeType
-    prev_game_mode:        GameModeType
+    game_mode:             GameMode
+    prev_game_mode:        GameMode
     world_names:           Identifier[VarInt]
     dimension_codec:       NBT
-    dimension:             NBT
+    dimension:             Dimension
     world_name:            Identifier
     hashed_seed:           Long
     max_players:           VarInt
@@ -46,11 +64,11 @@ class JoinGamePacket(Base):
 class RespawnPacket(Base):
     id = 0x39
 
-    dimension:      NBT
+    dimension:      Dimension
     world_name:     Identifier
     hashed_seed:    Long
-    game_mode:      GameModeType
-    prev_game_mode: GameModeType
+    game_mode:      GameMode
+    prev_game_mode: GameMode
     debug:          Boolean
     flat:           Boolean
     copy_metadata:  Boolean

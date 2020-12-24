@@ -28,44 +28,44 @@ class SimpleType(Type):
 
 class Boolean(SimpleType):
     _default = False
-    fmt = "?"
+    fmt      = "?"
 
 class Byte(SimpleType):
     _default = 0
-    fmt = "b"
+    fmt      = "b"
 
 class UnsignedByte(SimpleType):
     _default = 0
-    fmt = "B"
+    fmt      = "B"
 
 class Short(SimpleType):
     _default = 0
-    fmt = "h"
+    fmt      = "h"
 
 class UnsignedShort(SimpleType):
     _default = 0
-    fmt = "H"
+    fmt      = "H"
 
 class Int(SimpleType):
     _default = 0
-    fmt = "i"
+    fmt      = "i"
 
 class UnsignedInt(SimpleType):
     _default = 0
-    fmt = "I"
+    fmt      = "I"
 
 class Long(SimpleType):
     _default = 0
-    fmt = "q"
+    fmt      = "q"
 
 class UnsignedLong(SimpleType):
     _default = 0
-    fmt = "Q"
+    fmt      = "Q"
 
 class Float(SimpleType):
     _default = 0.0
-    fmt = "f"
+    fmt      = "f"
 
 class Double(SimpleType):
     _default = 0.0
-    fmt = "d"
+    fmt      = "d"

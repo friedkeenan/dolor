@@ -66,7 +66,7 @@ class Optional(Type):
             attr   = exists
             exists = lambda x: getattr(x, attr)
 
-        return type(f"Optional{elem_type.__name__}", (cls,), dict(
+        return type(f"{cls.__name__}{elem_type.__name__}", (cls,), dict(
             elem_type = elem_type,
             exists    = exists,
         ))

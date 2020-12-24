@@ -4,7 +4,7 @@ from .simple import UnsignedByte
 
 class VarNum(Type):
     _default = 0
-    bits = None
+    bits     = None
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
