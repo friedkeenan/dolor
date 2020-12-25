@@ -98,6 +98,12 @@ class Identifier(Type):
 
     _default = Identifier()
 
+    def __set__(self, instance, value):
+        if not isinstance(value, self.Identifier):
+            value = self.Identifier(value)
+
+        super().__set__(instance, value)
+
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
         return cls.Identifier(String.unpack(buf, ctx=ctx))

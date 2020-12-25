@@ -7,9 +7,10 @@ from aioconsole import aprint
 
 from .. import util
 from .. import encryption
+from .. import enums
 from ..packet_handler import packet_listener, PacketHandler
 from ..versions import Version
-from ..types import Chat
+from ..types import Chat, Identifier
 from ..packets import PacketContext, ServerboundPacket, serverbound, clientbound
 from . import connections
 
@@ -340,8 +341,25 @@ class Server(PacketHandler):
     async def _join_game_task(self, c):
         await aprint("Logged in:", c)
 
-        # TODO: Fill this out I guess
-        await c.write_packet(clientbound.JoinGamePacket)
+        # TODO: Make this all programatic
+
+        p = c.create_packet(clientbound.JoinGamePacket,
+            entity_id     = 1,
+            game_mode     = enums.GameMode.Survival,
+            world_names   = [Identifier.Identifier("minecraft:overworld")],
+            world_name    = Identifier.Identifier("minecraft:overworld"),
+            max_players   = self.max_players,
+            view_distance = 10,
+        )
+
+        # TODO: Fill out dimension_codec
+
+        p.dimension.coordinate_scale = 1.0
+        p.dimension.infiniburn       = Identifier.Identifier("minecraft:infiniburn_overworld")
+        p.dimension.effects          = Identifier.Identifier("minecraft:overworld")
+
+        await c.write_packet(p)
+        await c.write_packet(clientbound.PlayerPositionAndLook)
 
     @connection_task
     async def _keep_alive_task(self, c):

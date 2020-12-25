@@ -9,6 +9,7 @@ from .enum import *
 from .bit_flag import *
 from .compound import *
 from .optional import *
+from .default import *
 from .version_switched import *
 from .misc import *
 

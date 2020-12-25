@@ -2,7 +2,7 @@ import abc
 import copy
 import io
 
-from ..versions import Version
+from ..versions import Version, VersionSwitcher
 
 class TypeContext:
     def __init__(self, instance=None, ctx=None):
@@ -29,6 +29,13 @@ class Type(abc.ABC):
             return super().__new__(cls)
 
         return cls._call(*args, **kwargs)
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if isinstance(cls._default, dict):
+            cls._default = VersionSwitcher(cls._default)
 
     def __init__(self, *, _name=None):
         self._name = _name
@@ -58,8 +65,13 @@ class Type(abc.ABC):
         """
 
         if cls._default is not None:
+            if isinstance(cls._default, VersionSwitcher):
+                default = cls._default[ctx.version]
+            else:
+                default = cls._default
+
             # Deepcopy because the default could be mutable
-            return copy.deepcopy(cls._default)
+            return copy.deepcopy(default)
 
         raise NotImplementedError
 

@@ -12,6 +12,7 @@ Dimension = NBT.Compound("Dimension",
     ambient_light    = nbt.Float,
     logical_height   = nbt.Int,
     coordinate_scale = nbt.Double,
+    fixed_time       = NBT.Optional(nbt.Long),
     infiniburn       = NBT.Identifier,
     effects          = NBT.Identifier,
 
@@ -23,6 +24,22 @@ Dimension = NBT.Compound("Dimension",
     has_raids            = NBT.Boolean,
     ultrawarm            = NBT.Boolean,
     has_ceiling          = NBT.Boolean,
+)
+
+DimensionCodec = NBT.Compound("DimensionCodec",
+    {
+        "minecraft:dimension_type": NBT.Optional(NBT.Compound("DimensionType",
+            type  = NBT.Identifier,
+            value = NBT.List(NBT.Compound("DimensionDescriptor",
+                name    = NBT.Identifier,
+                id      = nbt.Int,
+                element = Dimension,
+            )),
+        )),
+
+        # TODO: Fill this out
+        "minecraft:worldgen/biome": NBT.Optional(nbt.Compound),
+    },
 )
 
 class ChatMessagePacket(Base):
@@ -50,7 +67,7 @@ class JoinGamePacket(Base):
     game_mode:             GameMode
     prev_game_mode:        GameMode
     world_names:           Identifier[VarInt]
-    dimension_codec:       NBT
+    dimension_codec:       DimensionCodec
     dimension:             Dimension
     world_name:            Identifier
     hashed_seed:           Long
@@ -60,6 +77,23 @@ class JoinGamePacket(Base):
     enable_respawn_screen: Boolean
     debug:                 Boolean
     flat:                  Boolean
+
+class PlayerPositionAndLook(Base):
+    id = 0x34
+
+    position: Vector(Double)
+    yaw:      Float
+    pitch:    Float
+
+    relative: BitFlag(UnsignedByte,
+        x     = 0,
+        y     = 1,
+        z     = 2,
+        y_rot = 3,
+        x_rot = 4,
+    )
+
+    teleport_id: VarInt
 
 class RespawnPacket(Base):
     id = 0x39

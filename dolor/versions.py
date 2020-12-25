@@ -31,7 +31,7 @@ class Version:
         self.name = name
 
         if proto < 0:
-            self.proto = self.supported_versions[self.name]
+            self.proto = self.supported_versions.get(self.name, -1)
         else:
             self.proto = proto
 

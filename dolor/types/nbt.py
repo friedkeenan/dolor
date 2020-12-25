@@ -45,6 +45,32 @@ class NBT(Type):
                 root_name = root_name,
             ))
 
+    class Default(Specialization):
+        elem_tag = None
+
+        @classmethod
+        def from_nbt(cls, data):
+            if issubclass(cls.elem_tag, NBT.Specialization):
+                return cls.elem_tag.from_nbt(data)
+
+            return data.value
+
+        @classmethod
+        def to_nbt(cls, value):
+            if issubclass(cls.elem_tag, NBT.Specialization):
+                return cls.elem_tag.to_nbt(value)
+
+            return cls.elem_tag(value)
+
+        @classmethod
+        def _call(cls, elem_tag, default, *, root_name=""):
+            return type(f"{cls.__name__}{elem_tag.__name__}", (cls,), dict(
+                root_name = root_name,
+                tag       = elem_tag.tag if issubclass(elem_tag, NBT.Specialization) else elem_tag,
+                elem_tag  = elem_tag,
+                _default  = default,
+            ))
+
     class Boolean(Specialization):
         tag = nbt.Byte
 
@@ -71,19 +97,47 @@ class NBT(Type):
         def to_nbt(cls, value):
             return cls.tag(str(value))
 
+    class List(Specialization):
+        tag = nbt.List
+
+        list_tag = None
+
+        _default = []
+
+        @classmethod
+        def from_nbt(cls, data):
+            if issubclass(cls.list_tag, NBT.Specialization):
+                return [cls.list_tag.from_nbt(cls.list_tag.tag(x)) for x in data.value]
+
+            return data.value
+
+        @classmethod
+        def to_nbt(cls, value):
+            if issubclass(cls.list_tag, NBT.Specialization):
+                return nbt.List(cls.list_tag.tag)([cls.list_tag.to_nbt(x).value for x in value])
+
+            return nbt.List(cls.list_tag)(value)
+
+        @classmethod
+        def _call(cls, tag, *, root_name=""):
+            return type(f"{cls.__name__}({tag.__name__})", (cls,), dict(
+                root_name = root_name,
+                list_tag  = tag,
+            ))
+
     class Optional(Specialization):
         """Used for marking fields in an NBT.Compound as optional"""
 
         @classmethod
         def from_nbt(cls, data):
-            if isinstance(cls.tag, NBT.Specialization):
+            if issubclass(cls.tag, NBT.Specialization):
                 return cls.tag.from_nbt(data)
 
             return data.value
 
         @classmethod
         def to_nbt(cls, value):
-            if isinstance(cls.tag, NBT.Specialization):
+            if issubclass(cls.tag, NBT.Specialization):
                 return cls.tag.to_nbt(value)
 
             return cls.tag(value)
@@ -100,6 +154,12 @@ class NBT(Type):
 
         elems      = None
         value_type = None
+
+        def __set__(self, instance, value):
+            if isinstance(value, dict):
+                value = self.value_type(value)
+
+            super().__set__(instance, value)
 
         @classmethod
         def default(cls, *, ctx=None):
@@ -151,9 +211,9 @@ class NBT(Type):
             return data
 
         @classmethod
-        def _call(cls, name=None, elems=None, *, root_name="", **kwargs):
-            if name is None:
-                name = cls.__name__
+        def _call(cls, type_name=None, elems=None, *, root_name="", **kwargs):
+            if type_name is None:
+                type_name = cls.__name__
 
             if elems is None:
                 elems = {}
@@ -161,10 +221,10 @@ class NBT(Type):
             # Use fancy 3.9+ |= operator?
             elems.update(kwargs)
 
-            return type(name, (cls,), dict(
+            return type(type_name, (cls,), dict(
                 root_name  = root_name,
                 elems      = elems,
-                value_type = util.AttrDict(name)
+                value_type = util.AttrDict(type_name)
             ))
 
     @classmethod
