@@ -9,6 +9,7 @@ class ChatServer(Server):
             await p.message(message, position=position, sender=sender)
 
     async def handle_command(self, sender, command):
+        # TODO: Command handling
         pass
 
     @packet_listener(serverbound.ChatMessagePacket)

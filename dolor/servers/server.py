@@ -356,11 +356,11 @@ class Server(PacketHandler):
         )
 
         p.dimension.coordinate_scale = 1.0
-        p.dimension.infiniburn       = Identifier.Identifier("minecraft:infiniburn_overworld")
+        p.dimension.infiniburn       = "minecraft:infiniburn_overworld"
         p.dimension.effects          = dim_identifier
 
         p.dimension_codec["minecraft:dimension_type"] = {
-            "type":  Identifier.Identifier("minecraft:dimension_type"),
+            "type":  "minecraft:dimension_type",
             "value": [{
                 "name":    dim_identifier,
                 "id":      0,
@@ -369,9 +369,9 @@ class Server(PacketHandler):
         }
 
         p.dimension_codec["minecraft:worldgen/biome"] = {
-            "type":  Identifier.Identifier("minecraft:worldgen/biome"),
+            "type":  "minecraft:worldgen/biome",
             "value": [{
-                "name": Identifier.Identifier("minecraft:plains"),
+                "name": "minecraft:plains",
                 "id":   1,
 
                 "element": {
@@ -389,7 +389,7 @@ class Server(PacketHandler):
                         "water_fog_color": 0x050533,
 
                         "mood_sound": {
-                            "sound":               Identifier.Identifier("minecraft:ambient.cave"),
+                            "sound":               "minecraft:ambient.cave",
                             "offset":              2.0,
                             "tick_delay":          6000,
                             "block_search_extent": 8,
