@@ -6,6 +6,9 @@ from .simple import UnsignedByte
 
 class EmptyType(Type):
     def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+
         return None
 
     def __set__(self, instance, value):
