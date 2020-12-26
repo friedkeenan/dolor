@@ -6,7 +6,7 @@ from .chat import *
 from .array import *
 from .vector import *
 from .enum import *
-from .bit_flag import *
+from .bit_mask import *
 from .compound import *
 from .optional import *
 from .default import *

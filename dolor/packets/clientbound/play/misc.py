@@ -50,7 +50,7 @@ class PlayerPositionAndLook(Base):
     yaw:      Float
     pitch:    Float
 
-    relative: BitFlag("Relative", UnsignedByte,
+    relative: BitMask("Relative", UnsignedByte,
         x     = 0,
         y     = 1,
         z     = 2,

@@ -5,6 +5,12 @@ from .type import Type
 from .simple import UnsignedByte
 
 class EmptyType(Type):
+    def __get__(self, instance, owner=None):
+        return None
+
+    def __set__(self, instance, value):
+        pass
+
     @classmethod
     def default(cls, *, ctx=None):
         return None
