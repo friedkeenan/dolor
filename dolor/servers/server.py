@@ -343,20 +343,61 @@ class Server(PacketHandler):
 
         # TODO: Make this all programatic
 
-        p = c.create_packet(clientbound.JoinGamePacket,
-            entity_id     = 1,
-            game_mode     = enums.GameMode.Survival,
-            world_names   = [Identifier.Identifier("minecraft:overworld")],
-            world_name    = Identifier.Identifier("minecraft:overworld"),
-            max_players   = self.max_players,
-            view_distance = 10,
-        )
+        dim_identifier = Identifier.Identifier("minecraft:overworld")
 
-        # TODO: Fill out dimension_codec
+        p = c.create_packet(clientbound.JoinGamePacket,
+            entity_id      = 1,
+            game_mode      = enums.GameMode.Survival,
+            prev_game_mode = enums.GameMode.Invalid,
+            world_names    = [dim_identifier],
+            world_name     = dim_identifier,
+            max_players    = self.max_players,
+            view_distance  = 10,
+        )
 
         p.dimension.coordinate_scale = 1.0
         p.dimension.infiniburn       = Identifier.Identifier("minecraft:infiniburn_overworld")
-        p.dimension.effects          = Identifier.Identifier("minecraft:overworld")
+        p.dimension.effects          = dim_identifier
+
+        p.dimension_codec["minecraft:dimension_type"] = {
+            "type":  Identifier.Identifier("minecraft:dimension_type"),
+            "value": [{
+                "name":    dim_identifier,
+                "id":      0,
+                "element": p.dimension,
+            }],
+        }
+
+        p.dimension_codec["minecraft:worldgen/biome"] = {
+            "type":  Identifier.Identifier("minecraft:worldgen/biome"),
+            "value": [{
+                "name": Identifier.Identifier("minecraft:plains"),
+                "id":   1,
+
+                "element": {
+                    "category":      "plains",
+                    "precipitation": "rain",
+                    "downfall":      0.4000000059604645,
+                    "temperature":   0.800000011920929,
+                    "depth":         0.125,
+                    "scale":         0.05000000074505806,
+
+                    "effects": {
+                        "sky_color":       7907327,
+                        "fog_color":       12638463,
+                        "water_color":     4159204,
+                        "water_fog_color": 329011,
+
+                        "mood_sound": {
+                            "sound":               Identifier.Identifier("minecraft:ambient.cave"),
+                            "offset":              2.0,
+                            "tick_delay":          6000,
+                            "block_search_extent": 8,
+                        },
+                    },
+                }
+            }],
+        }
 
         await c.write_packet(p)
         await c.write_packet(clientbound.PlayerPositionAndLook)

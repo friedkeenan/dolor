@@ -66,11 +66,16 @@ class Connection(connection.Connection):
 
         self.central_task = asyncio.create_task(self.server.central_connection_task(self))
 
-    async def message(self, message, position=enums.ChatPosition.Chat):
+    async def message(self, message, *, position=enums.ChatPosition.Chat, sender=None):
+        if sender is None:
+            sender = uuid.UUID(int=0)
+        else:
+            sender = sender.uuid
+
         await self.write_packet(clientbound.ChatMessagePacket(
             data     = message,
             position = position,
-            sender   = self.uuid,
+            sender   = sender,
         ))
 
     def close(self):

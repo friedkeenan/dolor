@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+import argparse
+from aioconsole import aprint
+
 import dolor
 from dolor.packets import clientbound, serverbound
-from aioconsole import aprint
 
 import config
 
@@ -13,7 +15,10 @@ class MyClient(dolor.clients.ChatClient, dolor.clients.RespawnClient):
     async def on_respawn(self, p):
         await aprint(p)
 
-if __name__ == "__main__":
+class MyServer(dolor.servers.ChatServer):
+    pass
+
+def test_client():
     c = MyClient("1.16.4", "localhost",
         lang_file = "en_us.json",
         username  = config.username,
@@ -21,3 +26,22 @@ if __name__ == "__main__":
     )
 
     c.run()
+
+def test_server():
+    s = MyServer("1.16.4", "localhost",
+        lang_file = "en_us.json",
+    )
+
+    s.run()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--test", "-t", default="client")
+
+    args = parser.parse_args()
+
+    if args.test == "client":
+        test_client()
+    elif args.test == "server":
+        test_server()

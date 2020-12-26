@@ -2,45 +2,10 @@ from .... import enums
 from .... import nbt
 from ....types import *
 from ...packet import *
+from .types import *
 
 class Base(ClientboundPacket, PlayPacket):
     pass
-
-GameMode = Enum(UnsignedByte, enums.GameMode)
-
-Dimension = NBT.Compound("Dimension",
-    ambient_light    = nbt.Float,
-    logical_height   = nbt.Int,
-    coordinate_scale = nbt.Double,
-    fixed_time       = NBT.Optional(nbt.Long),
-    infiniburn       = NBT.Identifier,
-    effects          = NBT.Identifier,
-
-    piglin_safe          = NBT.Boolean,
-    natural              = NBT.Boolean,
-    respawn_anchor_works = NBT.Boolean,
-    has_skylight         = NBT.Boolean,
-    bed_works            = NBT.Boolean,
-    has_raids            = NBT.Boolean,
-    ultrawarm            = NBT.Boolean,
-    has_ceiling          = NBT.Boolean,
-)
-
-DimensionCodec = NBT.Compound("DimensionCodec",
-    {
-        "minecraft:dimension_type": NBT.Optional(NBT.Compound("DimensionType",
-            type  = NBT.Identifier,
-            value = NBT.List(NBT.Compound("DimensionDescriptor",
-                name    = NBT.Identifier,
-                id      = nbt.Int,
-                element = Dimension,
-            )),
-        )),
-
-        # TODO: Fill this out
-        "minecraft:worldgen/biome": NBT.Optional(nbt.Compound),
-    },
-)
 
 class ChatMessagePacket(Base):
     id = 0x0e
@@ -85,7 +50,7 @@ class PlayerPositionAndLook(Base):
     yaw:      Float
     pitch:    Float
 
-    relative: BitFlag(UnsignedByte,
+    relative: BitFlag("Relative", UnsignedByte,
         x     = 0,
         y     = 1,
         z     = 2,
