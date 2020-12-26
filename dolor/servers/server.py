@@ -383,10 +383,10 @@ class Server(PacketHandler):
                     "scale":         0.05000000074505806,
 
                     "effects": {
-                        "sky_color":       7907327,
-                        "fog_color":       12638463,
-                        "water_color":     4159204,
-                        "water_fog_color": 329011,
+                        "sky_color":       0x78a7ff,
+                        "fog_color":       0xc0d8ff,
+                        "water_color":     0x3f76e4,
+                        "water_fog_color": 0x050533,
 
                         "mood_sound": {
                             "sound":               Identifier.Identifier("minecraft:ambient.cave"),
