@@ -28,7 +28,7 @@ def test_client():
     c.run()
 
 def test_server():
-    s = MyServer("1.16.4", "localhost",
+    s = MyServer("1.16.4", "localhost", 25566,
         lang_file = "en_us.json",
     )
 

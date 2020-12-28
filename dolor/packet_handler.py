@@ -2,13 +2,13 @@ import abc
 import asyncio
 import inspect
 
-def packet_listener(*checkers, outgoing=False):
+def packet_listener(*checkers, **kwargs):
     """Decorator for packet listeners within a class."""
 
     def dec(func):
-        # Set the _checkers attribute to be later
+        # Set the _packet_listener attribute to be later
         # recognized and registered by the class
-        func._packet_listener = (checkers, outgoing)
+        func._packet_listener = (checkers, kwargs)
 
         return func
 
@@ -37,7 +37,7 @@ class PacketHandler(abc.ABC):
     def join_checkers(self, first, second):
         return lambda x, y: (first(x, y) or second(x, y))
 
-    def register_packet_listener(self, func, *checkers, outgoing=False):
+    def register_packet_listener(self, func, *checkers, **kwargs):
         """
         Registers a packet listener.
 
@@ -50,6 +50,9 @@ class PacketHandler(abc.ABC):
         if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Packet listener {func.__name__} isn't a coroutine function")
 
+        if len(checkers) == 0:
+            raise ValueError("No checkers passed")
+
         real_checker = None
         for c in checkers:
             real_c = self.to_real_packet_checker(c)
@@ -59,18 +62,18 @@ class PacketHandler(abc.ABC):
             else:
                 real_checker = self.join_checkers(real_checker, real_c)
 
-        self.packet_listeners[func] = (real_checker, outgoing)
+        self.packet_listeners[func] = (real_checker, kwargs)
 
     def unregister_packet_listener(self, func):
         """Unregisters a packet listener."""
 
         self.packet_listeners.pop(func)
 
-    def external_packet_listener(self, *checkers, outgoing=False):
+    def external_packet_listener(self, *checkers, **kwargs):
         """Decorator for external packet listeners."""
 
         def dec(func):
-            self.register_packet_listener(func, *checkers, outgoing=outgoing)
+            self.register_packet_listener(func, *checkers, **kwargs)
 
             return func
 
@@ -84,7 +87,7 @@ class PacketHandler(abc.ABC):
             # the packet_listener function, then it
             # will have the _packet_listener attribute
             if hasattr(func, "_packet_listener"):
-                self.register_packet_listener(func, *func._packet_listener[0], outgoing=func._packet_listener[1])
+                self.register_packet_listener(func, *func._packet_listener[0], **func._packet_listener[1])
 
-    def listeners_for_packet(self, c, p, *, outgoing):
-        return [x for x, y in self.packet_listeners.items() if y[1] == outgoing and y[0](c, p)]
+    def listeners_for_packet(self, c, p, **kwargs):
+        return [x for x, y in self.packet_listeners.items() if y[1] == kwargs and y[0](c, p)]

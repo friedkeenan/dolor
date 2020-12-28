@@ -10,7 +10,7 @@ from .. import connection
 from ..packet_handler import packet_listener, PacketHandler
 from ..versions import Version
 from ..types import Chat
-from ..packets import PacketContext, ClientboundPacket, serverbound, clientbound
+from ..packets import PacketContext, serverbound, clientbound
 from ..yggdrasil import AuthenticationToken
 
 class Client(connection.Connection, PacketHandler):
@@ -44,8 +44,11 @@ class Client(connection.Connection, PacketHandler):
         self.tasks = []
 
         # TODO: Figure out a way to do this with super
-        connection.Connection.__init__(self, ClientboundPacket)
+        connection.Connection.__init__(self, clientbound)
         PacketHandler.__init__(self)
+
+    def register_packet_listener(self, *args, outgoing=False):
+        super().register_packet_listener(*args, outgoing=outgoing)
 
     def create_task(self, coro):
         """Internal function used to ensure that all listeners complete."""

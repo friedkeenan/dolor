@@ -11,8 +11,8 @@ from .. import enums
 from ..packet_handler import packet_listener, PacketHandler
 from ..versions import Version
 from ..types import Chat, Identifier
-from ..packets import PacketContext, ServerboundPacket, serverbound, clientbound
-from . import connections
+from ..packets import PacketContext, serverbound, clientbound
+from .connections import ServerConnection
 
 def connection_task(func):
     """Decorator for connection tasks within a class."""
@@ -24,7 +24,7 @@ def connection_task(func):
 class Server(PacketHandler):
     session_server = "https://sessionserver.mojang.com/session/minecraft"
 
-    Connection = connections.Connection
+    Connection = ServerConnection
 
     def __init__(self, version, address, port=25565, *,
         lang_file = None,
@@ -79,6 +79,7 @@ class Server(PacketHandler):
 
         func is a coroutine function.
         """
+
         if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Connection task {func.__name__} isn't a coroutine function")
 
@@ -115,6 +116,9 @@ class Server(PacketHandler):
                 await c.disconnect(e)
 
         return safe
+
+    def register_packet_listener(self, *args, outgoing=False):
+        super().register_packet_listener(*args, outgoing=outgoing)
 
     async def listen_to_packet(self, c, p, *, outgoing):
         listeners = self.listeners_for_packet(c, p, outgoing=outgoing)
@@ -195,13 +199,13 @@ class Server(PacketHandler):
     def remove(self, c):
         self.connections.remove(c)
 
-    async def on_start(self):
-        await self.main_task()
-
     async def startup(self):
         self.private_key, self.public_key = encryption.gen_private_public_keys()
 
         self.srv = await asyncio.start_server(self.new_connection, self.address, self.port)
+
+    async def on_start(self):
+        await self.main_task()
 
     async def start(self):
         await self.startup()
@@ -341,7 +345,7 @@ class Server(PacketHandler):
     async def _join_game_task(self, c):
         await aprint("Logged in:", c)
 
-        # TODO: Make this all programatic
+        # TODO: Make this all programmatic
 
         dim_identifier = Identifier.Identifier("minecraft:overworld")
 

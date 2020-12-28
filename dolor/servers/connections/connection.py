@@ -4,15 +4,16 @@ import uuid
 from ... import enums
 from ... import connection
 from ...versions import Version
-from ...packets import PacketContext, ServerboundPacket, clientbound
+from ...packets import PacketContext, serverbound, clientbound
 
-class Connection(connection.Connection):
+class ServerConnection(connection.Connection):
     def __init__(self, server, reader, writer):
         self.ctx = PacketContext(Version(None))
 
-        super().__init__(ServerboundPacket)
+        super().__init__(serverbound)
 
         self.server = server
+
         self.reader = reader
         self.writer = writer
 
@@ -90,6 +91,7 @@ class Connection(connection.Connection):
             await super().wait_closed()
 
             if self.central_task is not None:
+                # Use asyncio.wait_for?
                 await self.central_task
 
     def create_task(self, coro):

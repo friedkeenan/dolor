@@ -54,12 +54,13 @@ class AuthenticationToken:
 
         self.profile = None
 
-    async def ensure(self):
+    async def ensure(self, try_validate=False):
         if self.username is not None:
             await self.authenticate()
         else:
-            # Refresh even with valid tokens so we get the player name
-            await self.refresh()
+            if try_validate and not self.validate():
+                # Refresh even with valid tokens so we get the player name
+                await self.refresh()
 
     async def validate(self):
         data = {

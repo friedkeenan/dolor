@@ -7,11 +7,27 @@ from . import enums
 from . import util
 from . import encryption
 from .types import VarInt
-from .packets import GenericPacket, HandshakingPacket, StatusPacket, LoginPacket, PlayPacket
+
+from .packets import (
+    GenericPacket,
+    ServerboundPacket,
+    ClientboundPacket,
+    HandshakingPacket,
+    StatusPacket,
+    LoginPacket,
+    PlayPacket,
+
+    serverbound,
+    clientbound,
+)
 
 class Connection:
     def __init__(self, bound):
-        self.bound = bound
+        self.bound = {
+            serverbound: ServerboundPacket,
+            clientbound: ClientboundPacket,
+        }[bound]
+
         self.current_state = enums.State.Handshaking
 
         self.read_lock      = asyncio.Lock()
