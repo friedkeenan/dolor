@@ -2,6 +2,7 @@ import abc
 
 from .. import nbt
 from .. import util
+from ..versions import VersionSwitcher
 from .type import Type
 from .string import Identifier
 
@@ -11,30 +12,42 @@ class NBT(Type):
         root_name = ""
 
         @classmethod
+        def __init_subclass__(cls, **kwargs):
+            super().__init_subclass__(**kwargs)
+
+            if isinstance(cls.tag, dict):
+                cls.tag = VersionSwitcher(cls.tag)
+
+        @classmethod
         @abc.abstractmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             raise NotImplementedError
 
         @classmethod
         @abc.abstractmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             raise NotImplementedError
 
         @classmethod
         def _unpack(cls, buf, *, ctx=None):
             data = nbt.load(buf)
 
-            if not isinstance(data, cls.tag):
-                raise ValueError(f"Expected {cls.tag}, got {type(data)}")
+            if isinstance(cls.tag, VersionSwitcher):
+                tag = cls.tag[ctx.version]
+            else:
+                tag = cls.tag
+
+            if not isinstance(data, tag):
+                raise ValueError(f"Expected {tag}, got {type(data)}")
 
             if data.root_name != cls.root_name:
                 raise ValueError(f"Mismatched root names; expected {repr(cls.root_name)}, got {repr(data.root_name)}")
 
-            return cls.from_nbt(data)
+            return cls.from_nbt(data, ctx=ctx)
 
         @classmethod
         def _pack(cls, value, *, ctx=None):
-            data           = cls.to_nbt(value)
+            data           = cls.to_nbt(value, ctx=ctx)
             data.root_name = cls.root_name
 
             return nbt.dump(data)
@@ -45,18 +58,65 @@ class NBT(Type):
                 root_name = root_name,
             ))
 
+    class VersionSwitched(Specialization):
+        @classmethod
+        def real_tag(cls, *, ctx=None):
+            tag = cls.tag[ctx.version]
+
+            if tag is None:
+                return NBT.Empty
+
+            return tag
+
+        @classmethod
+        def default(cls, *, ctx=None):
+            tag = cls.real_tag(ctx=ctx)
+
+            if issubclass(tag, NBT.Specialization):
+                return tag.default(ctx=ctx)
+
+            return tag().value
+
+        @classmethod
+        def from_nbt(cls, data, *, ctx=None):
+            tag = cls.real_tag(ctx=ctx)
+
+            if issubclass(tag, NBT.Specialization):
+                return tag.from_nbt(data, ctx=ctx)
+
+            return data.value
+
+        @classmethod
+        def to_nbt(cls, value, *, ctx=None):
+            tag = cls.real_tag(ctx=ctx)
+
+            if issubclass(tag, NBT.Specialization):
+                return tag.to_nbt(value, ctx=ctx)
+
+            return tag(value)
+
+        @classmethod
+        def _call(cls, switcher, *, root_name=""):
+            if isinstance(switcher, dict):
+                switcher = VersionSwitcher(switcher)
+
+            return type(cls.__name__, (cls,), dict(
+                root_name = root_name,
+                tag       = switcher,
+            ))
+
     class Default(Specialization):
         elem_tag = None
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             if issubclass(cls.elem_tag, NBT.Specialization):
                 return cls.elem_tag.from_nbt(data)
 
             return data.value
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             if issubclass(cls.elem_tag, NBT.Specialization):
                 return cls.elem_tag.to_nbt(value)
 
@@ -77,11 +137,11 @@ class NBT(Type):
         _default = False
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             return bool(data.value)
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             return cls.tag(int(value))
 
     class Identifier(Specialization):
@@ -90,11 +150,11 @@ class NBT(Type):
         _default = Identifier.Identifier()
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             return Identifier.Identifier(data.value)
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             return cls.tag(str(value))
 
     class List(Specialization):
@@ -105,16 +165,16 @@ class NBT(Type):
         _default = []
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             if issubclass(cls.list_tag, NBT.Specialization):
-                return [cls.list_tag.from_nbt(cls.list_tag.tag(x)) for x in data.value]
+                return [cls.list_tag.from_nbt(cls.list_tag.tag(x), ctx=ctx) for x in data.value]
 
             return data.value
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             if issubclass(cls.list_tag, NBT.Specialization):
-                return nbt.List(cls.list_tag.tag)([cls.list_tag.to_nbt(x).value for x in value])
+                return nbt.List(cls.list_tag.tag)([cls.list_tag.to_nbt(x, ctx=ctx).value for x in value])
 
             return nbt.List(cls.list_tag)(value)
 
@@ -125,20 +185,23 @@ class NBT(Type):
                 list_tag  = tag,
             ))
 
+    class Empty(Specialization):
+        """Used for marking fields in an NBT.Compound as non-existent"""
+
     class Optional(Specialization):
         """Used for marking fields in an NBT.Compound as optional"""
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             if issubclass(cls.tag, NBT.Specialization):
-                return cls.tag.from_nbt(data)
+                return cls.tag.from_nbt(data, ctx=ctx)
 
             return data.value
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             if issubclass(cls.tag, NBT.Specialization):
-                return cls.tag.to_nbt(value)
+                return cls.tag.to_nbt(value, ctx=ctx)
 
             return cls.tag(value)
 
@@ -162,11 +225,20 @@ class NBT(Type):
             super().__set__(instance, value)
 
         @classmethod
+        def handle_tag(cls, tag, *, ctx=None):
+            if issubclass(tag, NBT.VersionSwitched):
+                return tag.real_tag(ctx=ctx)
+
+            return tag
+
+        @classmethod
         def default(cls, *, ctx=None):
             defaults = {}
 
             for name, tag in cls.elems.items():
-                if issubclass(tag, NBT.Optional):
+                tag = cls.handle_tag(tag, ctx=ctx)
+
+                if issubclass(tag, (NBT.Empty, NBT.Optional)):
                     continue
                 elif issubclass(tag, NBT.Specialization):
                     defaults[name] = tag.default(ctx=ctx)
@@ -176,16 +248,21 @@ class NBT(Type):
             return cls.value_type(defaults)
 
         @classmethod
-        def from_nbt(cls, data):
+        def from_nbt(cls, data, *, ctx=None):
             values = {}
 
             for name, tag in cls.elems.items():
+                tag = cls.handle_tag(tag, ctx=ctx)
+
+                if issubclass(tag, NBT.Empty):
+                    continue
+
                 field = data.value.get(name)
 
                 if field is None and issubclass(tag, NBT.Optional):
                     continue
                 elif issubclass(tag, NBT.Specialization):
-                    values[name] = tag.from_nbt(field)
+                    values[name] = tag.from_nbt(field, ctx=ctx)
                 else:
                     if not isinstance(field, tag):
                         raise ValueError(f"Expected {tag}, got {type(field)}")
@@ -195,16 +272,21 @@ class NBT(Type):
             return cls.value_type(values)
 
         @classmethod
-        def to_nbt(cls, value):
+        def to_nbt(cls, value, *, ctx=None):
             data = cls.tag()
 
             for name, tag in cls.elems.items():
+                tag = cls.handle_tag(tag, ctx=ctx)
+
+                if issubclass(tag, NBT.Empty):
+                    continue
+
                 field = value.get(name)
 
                 if field is None and issubclass(tag, NBT.Optional):
                     continue
                 elif issubclass(tag, NBT.Specialization):
-                    data[name] = tag.to_nbt(field)
+                    data[name] = tag.to_nbt(field, ctx=ctx)
                 else:
                     data[name] = tag(field)
 
@@ -220,6 +302,14 @@ class NBT(Type):
 
             # Use fancy 3.9+ |= operator?
             elems.update(kwargs)
+
+            to_change = {}
+
+            for name, tag in elems.items():
+                if isinstance(tag, dict):
+                    to_change[name] = NBT.VersionSwitched(tag)
+
+            elems.update(to_change)
 
             return type(type_name, (cls,), dict(
                 root_name  = root_name,

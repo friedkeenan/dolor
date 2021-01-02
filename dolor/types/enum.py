@@ -1,4 +1,5 @@
 from .type import Type
+from .version_switched import handle_dict_type
 
 class Enum(Type):
     elem_type = None
@@ -18,6 +19,8 @@ class Enum(Type):
 
     @classmethod
     def _call(cls, elem_type, enum_type):
+        elem_type = handle_dict_type(elem_type)
+
         return type(f"{elem_type.__name__}Enum", (cls,), dict(
             elem_type = elem_type,
             enum_type = enum_type,

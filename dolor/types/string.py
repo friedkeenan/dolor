@@ -2,6 +2,7 @@ import json
 
 from .type import Type
 from .var_num import VarInt
+from .version_switched import handle_dict_type
 
 class String(Type):
     prefix     = VarInt
@@ -46,6 +47,8 @@ class String(Type):
 
     @classmethod
     def _call(cls, length=None, *, max_length=None, prefix=VarInt, encoding="utf-8"):
+        prefix = handle_dict_type(prefix)
+
         if max_length is None:
             max_length = cls.max_length
 

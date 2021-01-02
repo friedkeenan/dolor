@@ -1,5 +1,4 @@
 import math
-import uuid
 
 from .type import Type
 from .simple import UnsignedByte
@@ -52,14 +51,3 @@ class Angle(Type):
     @classmethod
     def _pack(cls, value, *, ctx=None):
         return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau))
-
-class UUID(Type):
-    _default = uuid.UUID(int=0)
-
-    @classmethod
-    def _unpack(cls, buf, *, ctx=None):
-        return uuid.UUID(bytes=buf.read(0x10))
-
-    @classmethod
-    def _pack(cls, value, *, ctx=None):
-        return value.bytes

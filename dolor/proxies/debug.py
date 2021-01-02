@@ -21,17 +21,17 @@ class DebugProxy(Proxy):
     @packet_listener(Packet, bound=serverbound)
     async def _on_incoming_serverbound_packet(self, c, s, p):
         if self._should_print_packet(p):
-            await aprint("Incoming:", p)
+            await aprint("Incoming (serverbound):", p)
 
     @packet_listener(Packet, bound=clientbound)
     async def _on_incoming_clientbound_packet(self, c, s, p):
         if self._should_print_packet(p):
-            await aprint("Incoming:", p)
+            await aprint("Incoming (clientbound):", p)
 
     async def _on_outgoing_serverbound_packet(self, c, s, p):
         if self._should_print_packet(p):
-            await aprint("Outgoing:", p)
+            await aprint("Outgoing (serverbound):", p)
 
     async def _on_outgoing_clientbound_packet(self, c, s, p):
         if self._should_print_packet(p):
-            await aprint("Outgoing:", p)
+            await aprint("Outgoing (clientbound):", p)

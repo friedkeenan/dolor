@@ -1,3 +1,4 @@
+from ...versions import VersionRange
 from ...types import *
 from ..packet import *
 
@@ -19,7 +20,11 @@ class EncryptionRequestPacket(Base):
 class LoginSuccessPacket(Base):
     id = 0x02
 
-    uuid:     UUID
+    uuid: {
+        VersionRange(None, "20w13a"): UUIDString,
+        VersionRange("20w13a", None): UUID,
+    }
+
     username: String(16)
 
 class SetCompressionPacket(Base):

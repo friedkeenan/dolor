@@ -2,6 +2,7 @@ import inspect
 
 from .type import Type
 from .misc import RawByte
+from .version_switched import handle_dict_type
 
 class Array(Type):
     elem_type = None
@@ -106,6 +107,8 @@ class Array(Type):
 
     @classmethod
     def _call(cls, elem_type, size=None):
+        elem_type = handle_dict_type(elem_type)
+
         if isinstance(size, str):
             attr = size
             size = lambda x: getattr(x, attr)

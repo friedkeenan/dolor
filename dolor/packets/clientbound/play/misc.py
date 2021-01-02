@@ -1,50 +1,49 @@
 from .... import enums
-from .... import nbt
+from ....versions import VersionRange
 from ....types import *
 from ...packet import *
-from .types import *
 
 class Base(ClientboundPacket, PlayPacket):
     pass
 
 class ChatMessagePacket(Base):
-    id = 0x0e
+    id = {
+        VersionRange(None, "1.16-pre1"): 0x0f,
+        VersionRange("1.16-pre1", None): 0x0e,
+    }
 
     data:     Chat
     position: Enum(Byte, enums.ChatPosition)
-    sender:   UUID
+
+    sender: {
+        VersionRange(None, "20w21a"): None,
+        VersionRange("20w21a", None): UUID,
+    }
 
 class DisconnectPlayPacket(Base):
-    id = 0x19
+    id = {
+        VersionRange(None, "1.16-pre1"):     0x1b,
+        VersionRange("1.16-pre1", "20w28a"): 0x1a,
+        VersionRange("20w28a", None):        0x19,
+    }
 
     reason: Chat
 
 class KeepAlivePacket(Base):
-    id = 0x1f
+    id = {
+        VersionRange(None, "1.16-pre1"):     0x21,
+        VersionRange("1.16-pre1", "20w28a"): 0x20,
+        VersionRange("20w28a", None):        0x1f,
+    }
 
     keep_alive_id: Long
 
-class JoinGamePacket(Base):
-    id = 0x24
-
-    entity_id:             Int
-    hardcore:              Boolean
-    game_mode:             GameMode
-    prev_game_mode:        GameMode
-    world_names:           Identifier[VarInt]
-    dimension_codec:       DimensionCodec
-    dimension:             Dimension
-    world_name:            Identifier
-    hashed_seed:           Long
-    max_players:           VarInt
-    view_distance:         VarInt
-    reduced_debug_info:    Boolean
-    enable_respawn_screen: Boolean
-    debug:                 Boolean
-    flat:                  Boolean
-
 class PlayerPositionAndLook(Base):
-    id = 0x34
+    id = {
+        VersionRange(None, "1.16-pre1"):     0x36,
+        VersionRange("1.16-pre1", "20w28a"): 0x35,
+        VersionRange("20w28a", None):        0x34,
+    }
 
     position: Vector(Double)
     yaw:      Float
@@ -59,18 +58,6 @@ class PlayerPositionAndLook(Base):
     )
 
     teleport_id: VarInt
-
-class RespawnPacket(Base):
-    id = 0x39
-
-    dimension:      Dimension
-    world_name:     Identifier
-    hashed_seed:    Long
-    game_mode:      GameMode
-    prev_game_mode: GameMode
-    debug:          Boolean
-    flat:           Boolean
-    copy_metadata:  Boolean
 
 class UpdateHealthPacket(Base):
     id = 0x49

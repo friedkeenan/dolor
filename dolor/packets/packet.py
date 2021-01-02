@@ -1,7 +1,7 @@
 import io
 
 from ..versions import Version, VersionSwitcher
-from ..types import TypeContext, VarInt, RawByte
+from ..types import TypeContext, VarInt, RawByte, handle_dict_type
 
 class PacketContext:
     def __init__(self, version=None):
@@ -21,11 +21,24 @@ class Packet:
         super().__init_subclass__(**kwargs)
 
         if hasattr(cls, "__annotations__"):
+            to_change = {}
+
             for attr, attr_type in cls.__annotations__.items():
+                new_type = handle_dict_type(attr_type)
+                if new_type != attr_type:
+                    to_change[attr] = new_type
+
                 # Change this so type's constructor calls __set_name__?
-                setattr(cls, attr, attr_type(_name=attr))
+                # Note: Names are set by type's constructor before
+                # __init_subclass__ is called, so a metaclass would be needed.
+                setattr(cls, attr, new_type(_name=attr))
+
+            cls.__annotations__.update(to_change)
         else:
             cls.__annotations__ = {}
+
+        if isinstance(cls.id, dict):
+            cls.id = VersionSwitcher(cls.id)
 
     def __init__(self, *, buf=None, ctx=None, **kwargs):
         if buf is not None and isinstance(buf, (bytes, bytearray)):

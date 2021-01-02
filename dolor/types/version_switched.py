@@ -31,3 +31,9 @@ class VersionSwitchedType(Type):
         return type(cls.__name__, (cls,), dict(
             switcher = VersionSwitcher(switch),
         ))
+
+def handle_dict_type(type):
+    if isinstance(type, dict):
+        return VersionSwitchedType(type)
+
+    return type

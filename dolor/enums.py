@@ -1,5 +1,7 @@
 import enum
 
+from . import util
+
 class State(enum.Enum):
     Handshaking = 0
     Status      = 1
@@ -21,4 +23,24 @@ class GameMode(enum.Enum):
     Adventure = 2
     Spectator = 3
 
+    # Hardcore flag is bit 3, only used on older versions
+    HardcoreSurvival  = util.bit(3) | Survival
+    HardcoreCreative  = util.bit(3) | Creative
+    HardcoreAdventure = util.bit(3) | Adventure
+    HardcoreSpectator = util.bit(3) | Spectator
+
     Invalid = 255
+
+class LegacyDimension(enum.Enum):
+    Nether    = -1
+    Overworld = 0
+    End       = 1
+
+class LevelType(enum.Enum):
+    Default     = "default"
+    Flat        = "flat"
+    LargeBiomes = "largeBiomes"
+    Amplified   = "amplified"
+    Customized  = "customized"
+    Buffet      = "buffet"
+    Default_1_1 = "defalt_1_1"

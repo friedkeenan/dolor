@@ -1,6 +1,7 @@
 from .. import util
 from .type import Type
 from .simple import UnsignedLong
+from .version_switched import handle_dict_type
 
 class Vector(Type):
     class Vector:
@@ -54,6 +55,8 @@ class Vector(Type):
 
     @classmethod
     def _call(cls, elem_type):
+        elem_type = handle_dict_type(elem_type)
+
         return type(f"{elem_type.__name__}Vector", (cls,), dict(
             elem_type = elem_type,
         ))

@@ -1,6 +1,7 @@
 import collections
 
 from .type import Type
+from .version_switched import handle_dict_type
 
 class Compound(Type):
     elems      = None
@@ -22,6 +23,8 @@ class Compound(Type):
     def _call(cls, name=None, **elems):
         if name is None:
             name = cls.__name__
+
+        elems = {x: handle_dict_type(y) for x, y in elems.items()}
 
         return type(name, (cls,), dict(
             elems      = elems,

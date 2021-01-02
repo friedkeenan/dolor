@@ -1,4 +1,6 @@
+from .. import util
 from .type import Type
+from .version_switched import handle_dict_type
 
 class BitMask(Type):
     elem_type  = None
@@ -34,9 +36,9 @@ class BitMask(Type):
             bits = self.masks[attr]
 
             if isinstance(bits, int):
-                return (self.value & (1 << bits)) != 0
+                return (self.value & util.bit(bits)) != 0
 
-            bit_range = (1 << (bits[1] - bits[0])) - 1
+            bit_range = util.bit(bits[1] - bits[0]) - 1
 
             return ((self.value & (bit_range << bits[0])) >> bits[0])
 
@@ -48,11 +50,11 @@ class BitMask(Type):
 
                 if isinstance(bits, int):
                     if value:
-                        self.value |= (1 << bits)
+                        self.value |= util.bit(bits)
                     else:
-                        self.value &= ~(1 << bits)
+                        self.value &= ~util.bit(bits)
                 else:
-                    bit_range = (1 << (bits[1] - bits[0])) - 1
+                    bit_range = util.bit(bits[1] - bits[0]) - 1
 
                     if value != (value & bit_range):
                         raise ValueError(f"Value {value} too wide for range {bits}")
@@ -86,6 +88,6 @@ class BitMask(Type):
             name = name_or_elem_type
 
         return type(name, (cls,), dict(
-            elem_type  = elem_type,
+            elem_type  = handle_dict_type(elem_type),
             value_type = cls.BitMask(name, **masks),
         ))

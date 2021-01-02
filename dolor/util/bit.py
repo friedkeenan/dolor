@@ -1,12 +1,15 @@
+def bit(n):
+    return (1 << n)
+
 def to_signed(val, bits=32):
-    if val > (1 << (bits - 1)) - 1:
-        val -= (1 << bits)
+    if val > bit(bits - 1) - 1:
+        val -= bit(bits)
 
     return val
 
 def to_unsigned(val, bits=32):
     if val < 0:
-        val += (1 << bits)
+        val += bit(bits)
 
     return val
 

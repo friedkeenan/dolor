@@ -2,6 +2,7 @@ from .type import *
 from .simple import *
 from .var_num import *
 from .string import *
+from .uuid import *
 from .chat import *
 from .array import *
 from .vector import *

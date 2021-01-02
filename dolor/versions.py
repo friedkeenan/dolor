@@ -3,17 +3,81 @@ import inspect
 from . import util
 
 class Version:
-    PRERELEASE = 1 << 30
+    PRERELEASE = util.bit(30)
 
     # Must be ordered chronologically
     supported_versions = {
-        "1.16.4": 754,
+        "1.15.2":      578,
+
+        "20w06a":      701,
+        "20w07a":      702,
+        "20w08a":      703,
+        "20w09a":      704,
+        "20w10a":      705,
+        "20w11a":      706,
+        "20w12a":      707,
+        "20w13a":      708,
+        "20w13b":      709,
+        # Skip 20w14∞ (April Fools snapshot)
+        "20w14a":      710,
+        "20w15a":      711,
+        "20w16a":      712,
+        "20w17a":      713,
+        "20w18a":      714,
+        "20w19a":      715,
+        "20w20a":      716,
+        "20w20b":      717,
+        "20w21a":      718,
+        "20w22a":      719,
+
+        "1.16-pre1":   721,
+        "1.16-pre2":   722,
+        "1.16-pre3":   725,
+        "1.16-pre4":   727,
+        "1.16-pre5":   729,
+        "1.16-pre6":   730,
+        "1.16-pre7":   732,
+        "1.16-pre8":   733,
+
+        "1.16-rc1":    734,
+
+        "1.16":        735,
+
+        "1.16.1":      736,
+
+        "20w27a":      738,
+        "20w28a":      740,
+        "20w29a":      741,
+        "20w30a":      743,
+
+        "1.16.2-pre1": 744,
+        "1.16.2-pre2": 746,
+        "1.16.2-pre3": 748,
+
+        "1.16.2-rc1":  749,
+        "1.16.2-rc2":  750,
+
+        "1.16.2":      751,
+
+        "1.16.3-rc1":  752,
+
+        "1.16.3":      753,
+
+        "1.16.4-pre1": PRERELEASE | 1,
+        "1.16.4-pre2": PRERELEASE | 2,
+
+        "1.16.4-rc1":  PRERELEASE | 3,
+
+        "1.16.4":      754,
 
         None: -1,
     }
 
     @classmethod
     def name_from_proto(cls, proto):
+        # Potential issue when versions have
+        # overlapping protocol versions
+
         for name, proto_version in cls.supported_versions.items():
             if proto == proto_version:
                 return name
