@@ -8,8 +8,9 @@ class Base(ClientboundPacket, PlayPacket):
 
 class ChatMessagePacket(Base):
     id = {
-        VersionRange(None, "1.16-pre1"): 0x0f,
-        VersionRange("1.16-pre1", None): 0x0e,
+        VersionRange(None, "1.16-pre1"):     0x0f,
+        VersionRange("1.16-pre1", "20w49a"): 0x0e,
+        VersionRange("20w49a", None):        0x0f,
     }
 
     data:     Chat
@@ -24,7 +25,8 @@ class DisconnectPlayPacket(Base):
     id = {
         VersionRange(None, "1.16-pre1"):     0x1b,
         VersionRange("1.16-pre1", "20w28a"): 0x1a,
-        VersionRange("20w28a", None):        0x19,
+        VersionRange("20w28a", "20w49a"):    0x19,
+        VersionRange("20w49a", None):        0x1a
     }
 
     reason: Chat
@@ -33,7 +35,8 @@ class KeepAlivePacket(Base):
     id = {
         VersionRange(None, "1.16-pre1"):     0x21,
         VersionRange("1.16-pre1", "20w28a"): 0x20,
-        VersionRange("20w28a", None):        0x1f,
+        VersionRange("20w28a", "20w49a"):    0x1f,
+        VersionRange("20w49a", None):        0x20,
     }
 
     keep_alive_id: Long
@@ -42,7 +45,8 @@ class PlayerPositionAndLook(Base):
     id = {
         VersionRange(None, "1.16-pre1"):     0x36,
         VersionRange("1.16-pre1", "20w28a"): 0x35,
-        VersionRange("20w28a", None):        0x34,
+        VersionRange("20w28a", "20w49a"):    0x34,
+        VersionRange("20w49a", None):        0x35,
     }
 
     position: Vector(Double)
@@ -60,7 +64,10 @@ class PlayerPositionAndLook(Base):
     teleport_id: VarInt
 
 class UpdateHealthPacket(Base):
-    id = 0x49
+    id = {
+        VersionRange(None, "20w49a"): 0x49,
+        VersionRange("20w49a", None): 0x50,
+    }
 
     health:     Float
     food:       VarInt

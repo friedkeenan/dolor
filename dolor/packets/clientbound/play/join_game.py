@@ -113,7 +113,8 @@ class JoinGamePacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x26,
         VersionRange("1.16-pre1", "20w28a"): 0x25,
-        VersionRange("20w28a", None):        0x24,
+        VersionRange("20w28a", "20w49a"):    0x24,
+        VersionRange("20w49a", None):        0x25,
     }
 
     entity_id: Int
@@ -173,7 +174,8 @@ class RespawnPacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x3b,
         VersionRange("1.16-pre1", "20w28a"): 0x3a,
-        VersionRange("20w28a", None):        0x39,
+        VersionRange("20w28a", "20w49a"):    0x39,
+        VersionRange("20w49a", None):        0x3a,
     }
 
     dimension: Dimension

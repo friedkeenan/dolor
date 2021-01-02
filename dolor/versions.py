@@ -70,6 +70,12 @@ class Version:
 
         "1.16.4":      754,
 
+        "20w45a": PRERELEASE | 5,
+        "20w46a": PRERELEASE | 6,
+        "20w48a": PRERELEASE | 7,
+        "20w49a": PRERELEASE | 8,
+        "20w51a": PRERELEASE | 9,
+
         None: -1,
     }
 
