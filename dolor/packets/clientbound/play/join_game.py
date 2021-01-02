@@ -62,48 +62,46 @@ Biome = NBT.Compound("Biome",
     ),
 )
 
-DimensionCodec = NBT.Compound("DimensionCodec",
-    {
-        "minecraft:dimension_type": {
-            VersionRange(None, "20w28a"): None,
+DimensionCodec = NBT.Compound("DimensionCodec", {
+    "minecraft:dimension_type": {
+        VersionRange(None, "20w28a"): None,
 
-            # Marked optional since the client doesn't
-            # explicitly error if it's missing
-            VersionRange("20w28a", None): NBT.Optional(NBT.Compound("DimensionType",
-                type  = NBT.Identifier,
-                value = NBT.List(NBT.Compound("DimensionDescriptor",
-                    name    = NBT.Identifier,
-                    id      = nbt.Int,
-                    element = DimensionCompound,
-                )),
+        # Marked optional since the client doesn't
+        # explicitly error if it's missing
+        VersionRange("20w28a", None): NBT.Optional(NBT.Compound("DimensionType",
+            type  = NBT.Identifier,
+            value = NBT.List(NBT.Compound("DimensionDescriptor",
+                name    = NBT.Identifier,
+                id      = nbt.Int,
+                element = DimensionCompound,
             )),
-        },
-
-        "minecraft:worldgen/biome": {
-            VersionRange(None, "20w28a"): None,
-
-            # Marked optional for same reasons as above
-            VersionRange("20w28a", None): NBT.Optional(NBT.Compound("Biomes",
-                type  = NBT.Identifier,
-                value = NBT.List(NBT.Compound("BiomeDescriptor",
-                    name    = NBT.Identifier,
-                    id      = nbt.Int,
-                    element = Biome,
-                )),
-            )),
-        },
-
-        "dimension": {
-            VersionRange(None, "1.16-pre3"): NBT.List(NBT.Compound("DimensionItem",
-                key     = NBT.Identifier,
-                element = NBT.Identifier,
-            )),
-
-            VersionRange("1.16-pre3", "20w28a"): NBT.List(DimensionCompound),
-            VersionRange("20w28a", None):        None,
-        },
+        )),
     },
-)
+
+    "minecraft:worldgen/biome": {
+        VersionRange(None, "20w28a"): None,
+
+        # Marked optional for same reasons as above
+        VersionRange("20w28a", None): NBT.Optional(NBT.Compound("Biomes",
+            type  = NBT.Identifier,
+            value = NBT.List(NBT.Compound("BiomeDescriptor",
+                name    = NBT.Identifier,
+                id      = nbt.Int,
+                element = Biome,
+            )),
+        )),
+    },
+
+    "dimension": {
+        VersionRange(None, "1.16-pre3"): NBT.List(NBT.Compound("DimensionItem",
+            key     = NBT.Identifier,
+            element = NBT.Identifier,
+        )),
+
+        VersionRange("1.16-pre3", "20w28a"): NBT.List(DimensionCompound),
+        VersionRange("20w28a", None):        None,
+    },
+})
 
 Dimension = {
     VersionRange(None, "20w21a"):          Enum(Int, enums.LegacyDimension),

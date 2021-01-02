@@ -18,8 +18,8 @@ class MyClient(dolor.clients.ChatClient, dolor.clients.RespawnClient):
 class MyServer(dolor.servers.ChatServer):
     pass
 
-def test_client():
-    c = MyClient("1.16.4", "localhost",
+def test_client(version, port):
+    c = MyClient(version, "localhost", port,
         lang_file = "en_us.json",
         username  = config.username,
         password  = config.password,
@@ -27,8 +27,8 @@ def test_client():
 
     c.run()
 
-def test_server():
-    s = MyServer("1.16.4", "localhost", 25566,
+def test_server(version, port):
+    s = MyServer(version, "localhost", port,
         lang_file = "en_us.json",
     )
 
@@ -38,10 +38,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--test", "-t", default="client")
+    parser.add_argument("--version", "-v", default=dolor.Version.latest())
+    parser.add_argument("--port", "-p", default=25565, type=int)
 
     args = parser.parse_args()
 
     if args.test == "client":
-        test_client()
+        test_client(args.version, args.port)
     elif args.test == "server":
-        test_server()
+        test_server(args.version, args.port)

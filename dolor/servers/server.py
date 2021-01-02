@@ -359,49 +359,65 @@ class Server(PacketHandler):
             view_distance  = 10,
         )
 
-        p.dimension.coordinate_scale = 1.0
-        p.dimension.infiniburn       = "minecraft:infiniburn_overworld"
-        p.dimension.effects          = dim_identifier
+        if c.ctx.version < "20w21a":
+            pass
+        elif c.ctx.version < "1.16.2-pre3":
+            p.dimension = dim_identifier
+        else:
+            p.dimension.name             = dim_identifier
+            p.dimension.shrunk           = False
+            p.dimension.coordinate_scale = 1.0
 
-        p.dimension_codec["minecraft:dimension_type"] = {
-            "type":  "minecraft:dimension_type",
-            "value": [{
-                "name":    dim_identifier,
-                "id":      0,
-                "element": p.dimension,
-            }],
-        }
+            p.dimension.infiniburn = "minecraft:infiniburn_overworld"
+            p.dimension.effects    = dim_identifier
 
-        p.dimension_codec["minecraft:worldgen/biome"] = {
-            "type":  "minecraft:worldgen/biome",
-            "value": [{
-                "name": "minecraft:plains",
-                "id":   1,
-
-                "element": {
-                    "category":      "plains",
-                    "precipitation": "rain",
-                    "downfall":      0.4000000059604645,
-                    "temperature":   0.800000011920929,
-                    "depth":         0.125,
-                    "scale":         0.05000000074505806,
-
-                    "effects": {
-                        "sky_color":       0x78a7ff,
-                        "fog_color":       0xc0d8ff,
-                        "water_color":     0x3f76e4,
-                        "water_fog_color": 0x050533,
-
-                        "mood_sound": {
-                            "sound":               "minecraft:ambient.cave",
-                            "offset":              2.0,
-                            "tick_delay":          6000,
-                            "block_search_extent": 8,
-                        },
-                    },
+            if c.ctx.version < "1.16-pre3":
+                p.dimension_codec["dimension"] = [{
+                    "key":     dim_identifier,
+                    "element": dim_identifier,
+                }]
+            elif c.ctx.version < "20w28a":
+                p.dimension_codec["dimension"] = [p.dimension]
+            else:
+                p.dimension_codec["minecraft:dimension_type"] = {
+                    "type":  "minecraft:dimension_type",
+                    "value": [{
+                        "name":    dim_identifier,
+                        "id":      0,
+                        "element": p.dimension,
+                    }],
                 }
-            }],
-        }
+
+                p.dimension_codec["minecraft:worldgen/biome"] = {
+                    "type":  "minecraft:worldgen/biome",
+                    "value": [{
+                        "name": "minecraft:plains",
+                        "id":   1,
+
+                        "element": {
+                            "category":      "plains",
+                            "precipitation": "rain",
+                            "downfall":      0.4000000059604645,
+                            "temperature":   0.800000011920929,
+                            "depth":         0.125,
+                            "scale":         0.05000000074505806,
+
+                            "effects": {
+                                "sky_color":       0x78a7ff,
+                                "fog_color":       0xc0d8ff,
+                                "water_color":     0x3f76e4,
+                                "water_fog_color": 0x050533,
+
+                                "mood_sound": {
+                                    "sound":               "minecraft:ambient.cave",
+                                    "offset":              2.0,
+                                    "tick_delay":          6000,
+                                    "block_search_extent": 8,
+                                },
+                            },
+                        }
+                    }],
+                }
 
         await c.write_packet(p)
         await c.write_packet(clientbound.PlayerPositionAndLook)

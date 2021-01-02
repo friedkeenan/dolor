@@ -58,8 +58,7 @@ class AuthenticationToken:
         if self.username is not None:
             await self.authenticate()
         else:
-            if try_validate and not self.validate():
-                # Refresh even with valid tokens so we get the player name
+            if not try_validate or not self.validate():
                 await self.refresh()
 
     async def validate(self):

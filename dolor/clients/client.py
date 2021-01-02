@@ -23,6 +23,8 @@ class Client(connection.Connection, PacketHandler):
         client_token = None,
         username     = None,
         password     = None,
+
+        name = None,
     ):
         version  = Version(version, check_supported=True)
         self.ctx = PacketContext(version)
@@ -30,12 +32,15 @@ class Client(connection.Connection, PacketHandler):
         self.address = address
         self.port    = port
 
+        self.authenticated = False
         self.auth_token = AuthenticationToken(
             access_token = access_token,
             client_token = client_token,
             username     = username,
             password     = password,
         )
+
+        self.name = name
 
         if lang_file is not None:
             Chat.Chat.load_translations(lang_file)
@@ -112,6 +117,13 @@ class Client(connection.Connection, PacketHandler):
         except KeyboardInterrupt:
             self.close()
 
+    async def auth(self, **kwargs):
+        await self.auth_token.ensure(**kwargs)
+        self.authenticated = True
+
+        if self.name is None:
+            self.name = self.auth_token.profile.name
+
     async def send_server_hash(self, server_hash):
         async with aiohttp.ClientSession() as s:
             async with s.post(f"{self.session_server}/join",
@@ -154,7 +166,10 @@ class Client(connection.Connection, PacketHandler):
         if self.current_state != enums.State.Handshaking:
             raise ValueError(f"Invalid state: {self.current_state}")
 
-        await self.auth_token.ensure()
+        if self.name is None:
+            # If we don't have a name then we need to get it,
+            # so we can't just validate, we need to refresh.
+            await self.auth()
 
         self.should_listen_sequentially = True
 
@@ -168,7 +183,7 @@ class Client(connection.Connection, PacketHandler):
         self.current_state = enums.State.Login
 
         await self.write_packet(serverbound.LoginStartPacket,
-            name = self.auth_token.profile.name,
+            name = self.name,
         )
 
         await self.listen()
@@ -184,6 +199,9 @@ class Client(connection.Connection, PacketHandler):
 
     @packet_listener(clientbound.EncryptionRequestPacket)
     async def _on_encryption_request(self, p):
+        if not self.authenticated:
+            await self.auth(try_validate=True)
+
         shared_secret = encryption.gen_shared_secret()
         server_hash   = encryption.gen_server_hash(p.server_id, shared_secret, p.public_key)
 

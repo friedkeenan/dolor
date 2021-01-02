@@ -32,9 +32,9 @@ class GameMode(enum.Enum):
     Invalid = 255
 
 class LegacyDimension(enum.Enum):
+    Overworld =  0
     Nether    = -1
-    Overworld = 0
-    End       = 1
+    End       =  1
 
 class LevelType(enum.Enum):
     Default     = "default"

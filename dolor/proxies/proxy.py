@@ -229,6 +229,18 @@ class Proxy(PacketHandler):
 
     @packet_listener(clientbound.EncryptionRequestPacket)
     async def _on_encryption_request(self, c, s, p):
+        # Handle authentication and encryption ourselves so
+        # that the client never receives the EncryptionRequestPacket,
+        # and thus thinks that the server is an offline
+        # server, so it doesn't try to authenticate while
+        # still allowing us to read its packets.
+        #
+        # We *could* generate our own private/public keys
+        # to get the client's shared secret, but then it
+        # would use the proxy's public key to calculate
+        # the server hash instead of the server's public
+        # key, leading to authentication failing.
+
         if c.name in self.auth:
             c.auth_token = AuthenticationToken(**self.auth[c.name])
         else:
@@ -254,6 +266,8 @@ class Proxy(PacketHandler):
 
     @packet_listener(clientbound.SetCompressionPacket)
     async def _on_set_compression(self, c, s, p):
+        # Write the packet before setting the compressing threshold
+        # so that the packet gets sent uncompressed
         await c.write_packet(p)
 
         c.comp_threshold = s.comp_threshold = p.threshold

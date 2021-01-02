@@ -74,6 +74,14 @@ class Version:
     }
 
     @classmethod
+    def latest(cls):
+        for name in reversed(cls.supported_versions):
+            if name is not None:
+                return name
+
+        return None
+
+    @classmethod
     def name_from_proto(cls, proto):
         # Potential issue when versions have
         # overlapping protocol versions

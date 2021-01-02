@@ -11,6 +11,8 @@ from . import clients
 from . import servers
 from . import proxies
 
+from .versions import Version
+
 from .packet_handler import packet_listener
 from .servers import connection_task
 
