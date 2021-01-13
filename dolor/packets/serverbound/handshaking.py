@@ -2,10 +2,7 @@ from ... import enums
 from ...types import *
 from ..packet import *
 
-class Base(ServerboundPacket, HandshakingPacket):
-    pass
-
-class HandshakePacket(Base):
+class HandshakePacket(ServerboundPacket, HandshakingPacket):
     id = 0x00
 
     proto_version:  VarInt

@@ -66,7 +66,7 @@ class BitMask(Type):
             return f"{type(self).__name__}({', '.join(f'{x}={getattr(self, x)}' for x in self.masks)})"
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return cls.value_type()
 
     @classmethod
@@ -87,7 +87,7 @@ class BitMask(Type):
         else:
             name = name_or_elem_type
 
-        return type(name, (cls,), dict(
+        return cls.make_type(name,
             elem_type  = handle_dict_type(elem_type),
             value_type = cls.BitMask(name, **masks),
-        ))
+        )

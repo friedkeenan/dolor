@@ -8,7 +8,7 @@ class Compound(Type):
     value_type = None
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return cls.value_type(*(x.default(ctx=ctx) for x in cls.elems.values()))
 
     @classmethod
@@ -26,7 +26,7 @@ class Compound(Type):
 
         elems = {x: handle_dict_type(y) for x, y in elems.items()}
 
-        return type(name, (cls,), dict(
+        return cls.make_type(name,
             elems      = elems,
-            value_type = collections.namedtuple(name, elems.keys())
-        ))
+            value_type = collections.namedtuple(name, elems.keys()),
+        )

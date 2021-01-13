@@ -54,9 +54,9 @@ class NBT(Type):
 
         @classmethod
         def _call(cls, *, root_name=""):
-            return type(cls.__name__, (cls,), dict(
+            return cls.make_type(cls.__name__,
                 root_name = root_name,
-            ))
+            )
 
     class VersionSwitched(Specialization):
         @classmethod
@@ -69,7 +69,7 @@ class NBT(Type):
             return tag
 
         @classmethod
-        def default(cls, *, ctx=None):
+        def _default(cls, *, ctx=None):
             tag = cls.real_tag(ctx=ctx)
 
             if issubclass(tag, NBT.Specialization):
@@ -100,10 +100,10 @@ class NBT(Type):
             if isinstance(switcher, dict):
                 switcher = VersionSwitcher(switcher)
 
-            return type(cls.__name__, (cls,), dict(
+            return cls.make_type(cls.__name__,
                 root_name = root_name,
                 tag       = switcher,
-            ))
+            )
 
     class Default(Specialization):
         elem_tag = None
@@ -124,12 +124,12 @@ class NBT(Type):
 
         @classmethod
         def _call(cls, elem_tag, default, *, root_name=""):
-            return type(f"{cls.__name__}{elem_tag.__name__}", (cls,), dict(
+            return cls.make_type(f"{cls.__name__}{elem_tag.__name__}",
                 root_name = root_name,
                 tag       = elem_tag.tag if issubclass(elem_tag, NBT.Specialization) else elem_tag,
                 elem_tag  = elem_tag,
                 _default  = default,
-            ))
+            )
 
     class Boolean(Specialization):
         tag = nbt.Byte
@@ -180,10 +180,10 @@ class NBT(Type):
 
         @classmethod
         def _call(cls, tag, *, root_name=""):
-            return type(f"{cls.__name__}({tag.__name__})", (cls,), dict(
+            return cls.make_type(f"{cls.__name__}({tag.__name__})",
                 root_name = root_name,
                 list_tag  = tag,
-            ))
+            )
 
     class Empty(Specialization):
         """Used for marking fields in an NBT.Compound as non-existent"""
@@ -207,10 +207,10 @@ class NBT(Type):
 
         @classmethod
         def _call(cls, tag, *, root_name=""):
-            return type(f"{cls.__name__}{tag.__name__}", (cls,), dict(
+            return cls.make_type(f"{cls.__name__}{tag.__name__}",
                 root_name = root_name,
                 tag       = tag,
-            ))
+            )
 
     class Compound(Specialization):
         tag = nbt.Compound
@@ -232,7 +232,7 @@ class NBT(Type):
             return tag
 
         @classmethod
-        def default(cls, *, ctx=None):
+        def _default(cls, *, ctx=None):
             defaults = {}
 
             for name, tag in cls.elems.items():
@@ -311,14 +311,14 @@ class NBT(Type):
 
             elems.update(to_change)
 
-            return type(type_name, (cls,), dict(
+            return cls.make_type(type_name,
                 root_name  = root_name,
                 elems      = elems,
                 value_type = util.AttrDict(type_name)
-            ))
+            )
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return nbt.Compound(root_name="")
 
     @classmethod

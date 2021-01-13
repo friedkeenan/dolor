@@ -42,7 +42,7 @@ class Vector(Type):
     elem_type = None
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return cls.Vector(*([cls.elem_type.default(ctx=ctx)] * 3))
 
     @classmethod
@@ -57,9 +57,9 @@ class Vector(Type):
     def _call(cls, elem_type):
         elem_type = handle_dict_type(elem_type)
 
-        return type(f"{elem_type.__name__}Vector", (cls,), dict(
+        return cls.make_type(f"{elem_type.__name__}Vector",
             elem_type = elem_type,
-        ))
+        )
 
 
 class Position(Type):

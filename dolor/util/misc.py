@@ -1,7 +1,22 @@
+"""Miscellaneous utilities."""
+
 import zlib
 import io
 
 def get_subclasses(*args):
+    """Gets the subclasses of the parameters.
+
+    Parameters
+    ----------
+    args : :class:`type`
+        The types to get the subclasses of.
+
+    Returns
+    -------
+    :class:`set`
+        The subclasses of `args`.
+    """
+
     ret = set()
 
     for arg in args:
@@ -12,11 +27,35 @@ def get_subclasses(*args):
     return ret
 
 class ZlibDecompressFile(io.IOBase):
+    """A simple read-only file object for decompressing zlib data.
+
+    Parameters
+    ----------
+    f
+        The file object to wrap.
+    args, kwargs
+        Forwarded to :func:`zlib.decompressobj`.
+    """
+
     def __init__(self, f, *args, **kwargs):
         self.f = f
         self.decomp = zlib.decompressobj(*args, **kwargs)
 
     def read(self, size=-1):
+        """Reads decompressed data from the wraped file object.
+
+        Parameters
+        ----------
+        size : :class:`int`
+            The amount of data to return. If -1, decompress
+            all the data that's left.
+
+        Returns
+        -------
+        :class:`bytes`
+            The decompressed data.
+        """
+
         if size < 0:
             return self.decomp.decompress(self.f.read(size))
 
@@ -27,4 +66,6 @@ class ZlibDecompressFile(io.IOBase):
         return ret
 
     def close(self):
+        """Closes the wrapped file object."""
+
         self.f.close()

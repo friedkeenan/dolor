@@ -2,10 +2,7 @@ from ...versions import Version
 from ...types import *
 from ..packet import *
 
-class Base(ClientboundPacket, StatusPacket):
-    pass
-
-class ResponsePacket(Base):
+class ResponsePacket(ClientboundPacket, StatusPacket):
     class Response(Type):
         class Response:
             def __init__(self, *, version=None, players=None, description=None, favicon=None, raw=None):
@@ -58,7 +55,7 @@ class ResponsePacket(Base):
 
     response: Response
 
-class PongPacket(Base):
+class PongPacket(ClientboundPacket, StatusPacket):
     id = 0x01
 
     payload: Long

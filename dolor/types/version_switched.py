@@ -15,7 +15,7 @@ class VersionSwitchedType(Type):
         return ret
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return cls.value_type(ctx=ctx).default(ctx=ctx)
 
     @classmethod
@@ -28,9 +28,9 @@ class VersionSwitchedType(Type):
 
     @classmethod
     def _call(cls, switch):
-        return type(cls.__name__, (cls,), dict(
+        return cls.make_type(cls.__name__,
             switcher = VersionSwitcher(switch),
-        ))
+        )
 
 def handle_dict_type(type):
     if isinstance(type, dict):

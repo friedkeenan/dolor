@@ -1,3 +1,8 @@
+"""NBT marshaling.
+
+See https://wiki.vg/NBT for a specification of the format.
+"""
+
 import abc
 import io
 import struct
@@ -8,13 +13,60 @@ from . import util
 from . import types
 
 class Tag(abc.ABC):
-    id   = None
+    """An NBT tag.
 
-    # Must not require a type context
+    :meta no-undoc-members:
+
+    Parameters
+    ----------
+    value : any, optional
+        The tag's value. If unspecified, then the default value will be used.
+    root_name : :class:`str`, optional
+        The root name of the tag. If specified, then the tag will be treated
+        as a root tag.
+
+    Attributes
+    ----------
+    id : :class:`int` or None
+        The tag's id. If None, then the tag will not be used in marshaling.
+    type : subclass of :class:`~.Type`
+        The tag's underlying type. Used to automatically pack and unpack
+        the raw data of the tag. Must be able to be used without a
+        :class:`~.TypeContext`.
+    value : any
+        The tag's value.
+    root_name : :class:`str` or None
+        The tag's root name. If not None, then the tag will be treated
+        as a root tag.
+    """
+
+    id   = None
     type = None
 
     @classmethod
     def from_id(cls, id):
+        """Gets the tag whose id is `id`.
+
+        Will search through the subclasses of :class:`Tag`,
+        ignoring subclasses whose :attr:`id` attribute is None.
+
+        Parameters
+        ----------
+        id : :class:`int`
+            The id to look for.
+
+        Returns
+        -------
+        subclass of :class:`Tag`
+            The tag whose id is `id`.
+
+        Examples
+        --------
+        >>> import dolor
+        >>> dolor.nbt.Tag.from_id(0)
+        <class 'dolor.nbt.End'>
+        """
+
         for tag in util.get_subclasses(cls):
             if tag.id is not None and tag.id == id:
                 return tag
@@ -29,6 +81,16 @@ class Tag(abc.ABC):
         self.root_name = root_name
 
     def pack(self):
+        """Packs the tag.
+
+        Does not include the id. Use :func:`dump` for a complete dump.
+
+        Returns
+        -------
+        :class:`bytes`
+            The packed tag.
+        """
+
         if self.root_name is not None:
             return String(self.root_name).pack() + self._pack(self.value)
 
@@ -44,6 +106,24 @@ class Tag(abc.ABC):
 
     @classmethod
     def unpack(cls, buf, *, root=False):
+        """Unpacks a buffer into a tag.
+
+        Does not include the id. Use :func:`load` to properly
+        unpack NBT data.
+
+        Parameters
+        ----------
+        buf : :class:`bytes` or :class:`bytearray` or file object
+            The buffer to unpack.
+        root : :class:`bool`, optional
+            Whether the tag is a root tag.
+
+        Returns
+        -------
+        :class:`Tag`
+            The unpacked tag.
+        """
+
         if isinstance(buf, (bytes, bytearray)):
             buf = io.BytesIO(buf)
 
@@ -105,6 +185,26 @@ class String(Tag):
     type = types.String(prefix=types.UnsignedShort, max_length=65535)
 
 class List(Tag):
+    """A List tag.
+
+    Parameters
+    ----------
+    tag_or_value : subclass of :class:`Tag` or :class:`list`
+        If a subclass of :class:`Tag`, then a new subclass of :class:`List`
+        will be generated with its :attr:`tag` attribute set to `tag_or_value`.
+
+        Otherwise, :meth:`__init__` will continue on as normal.
+    args, kwargs
+        Forwarded to :meth:`__init__`.
+
+    Attributes
+    ----------
+    tag : subclass of :class:`Tag`
+        The tag of the values of this :class:`List`.
+    value : :class:`list`
+        A list of values for :attr:`tag`.
+    """
+
     id = 9
 
     tag = None
@@ -152,6 +252,15 @@ class List(Tag):
         return types.UnsignedByte.pack(cls.tag.id) + Int(len(value)).pack() + b"".join(cls.tag(x).pack() for x in value)
 
 class Compound(Tag):
+    """A Compound tag.
+
+    Attributes
+    ----------
+    value : :class:`dict`
+        A dictionary whose keys are :class:`str` objects
+        and whose values are :class:`Tag` objects.
+    """
+
     id = 10
 
     def __init__(self, value=None, *, root_name=None):
@@ -199,6 +308,25 @@ class LongArray(Tag):
     type = types.Long[types.Int]
 
 def load(f):
+    r"""Loads a complete NBT dump into a :class:`Tag`.
+
+    Parameters
+    ----------
+    f : :class:`bytes` or :class:`bytearray` or file object
+        The data to load. May be uncompressed, gzip'd, or zlib'd.
+
+    Returns
+    -------
+    :class:`Tag`
+        The loaded tag.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> dolor.nbt.load(b"\x08\x00\x04test\x00\x0eThis is a test")
+    String(root_name='test', 'This is a test')
+    """
+
     should_close = False
 
     if isinstance(f, (bytes, bytearray)):
@@ -227,6 +355,57 @@ def load(f):
     return ret
 
 def dump(obj, f=None, *, compression=None):
+    r"""Dumps a root tag into a binary dump.
+
+    Parameters
+    ----------
+    obj : :class:`Tag`
+        The root tag to dump.
+    f : file object, optional
+        The file object to dump to. If unspecified, the dumped
+        data will instead be returned.
+    compression : :class:`function` or any, optional
+        The compression used to compress the dumped data. If unspecified,
+        the data won't be compressed.
+
+        If a :class:`function`, then the data will be passed to it and
+        the return value will be treated as the new, compressed data.
+
+        Otherwise, the :attr:`compress` attribute of `compression` will
+        be used as the compression function, allowing you to pass a
+        module like :mod:`gzip` as `compression`.
+
+    Returns
+    -------
+    :class:`bytes` or :class:`int`
+        If `f` is unspecified, then :class:`bytes` will be returned.
+        Otherwise how many bytes were written to `f` will be returned.
+
+    Raises
+    ------
+    :exc:`ValueError`
+        If `obj` is not a root tag.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> import gzip
+    >>> import io
+    >>> tag = dolor.nbt.String("This is a test", root_name="test")
+    >>> dolor.nbt.dump(tag)
+    b'\x08\x00\x04test\x00\x0eThis is a test'
+    >>> dolor.nbt.dump(tag, compression=gzip) # doctest: +SKIP
+    b'\x1f\x8b\x08\x00u;\xfa_\x02\xff\xe3``)I-.a\xe0\x0b\xc9\xc8,V\x00\xa2D\x05\x10\x1f\x00(\x9a)|\x17\x00\x00\x00'
+    >>> f = io.BytesIO()
+    >>> dolor.nbt.dump(tag, f)
+    23
+    >>> f.getvalue()
+    b'\x08\x00\x04test\x00\x0eThis is a test'
+    """
+
+    if obj.root_name is None:
+        raise ValueError("Cannot dump a non-root tag.")
+
     if compression is not None and not inspect.isfunction(compression):
         compression = compression.compress
 

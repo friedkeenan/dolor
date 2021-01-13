@@ -3,10 +3,7 @@ from ....versions import VersionRange
 from ....types import *
 from ...packet import *
 
-class Base(ClientboundPacket, PlayPacket):
-    pass
-
-class ChatMessagePacket(Base):
+class ChatMessagePacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x0f,
         VersionRange("1.16-pre1", "20w49a"): 0x0e,
@@ -21,7 +18,7 @@ class ChatMessagePacket(Base):
         VersionRange("20w21a", None): UUID,
     }
 
-class DisconnectPlayPacket(Base):
+class DisconnectPlayPacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x1b,
         VersionRange("1.16-pre1", "20w28a"): 0x1a,
@@ -31,7 +28,7 @@ class DisconnectPlayPacket(Base):
 
     reason: Chat
 
-class KeepAlivePacket(Base):
+class KeepAlivePacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x21,
         VersionRange("1.16-pre1", "20w28a"): 0x20,
@@ -41,7 +38,7 @@ class KeepAlivePacket(Base):
 
     keep_alive_id: Long
 
-class PlayerPositionAndLook(Base):
+class PlayerPositionAndLook(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "1.16-pre1"):     0x36,
         VersionRange("1.16-pre1", "20w28a"): 0x35,
@@ -63,7 +60,7 @@ class PlayerPositionAndLook(Base):
 
     teleport_id: VarInt
 
-class UpdateHealthPacket(Base):
+class UpdateHealthPacket(ClientboundPacket, PlayPacket):
     id = {
         VersionRange(None, "20w49a"): 0x49,
         VersionRange("20w49a", None): 0x50,

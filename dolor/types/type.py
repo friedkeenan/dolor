@@ -1,4 +1,5 @@
 import abc
+import inspect
 import copy
 import io
 
@@ -37,6 +38,19 @@ class Type(abc.ABC):
         if isinstance(cls._default, dict):
             cls._default = VersionSwitcher(cls._default)
 
+        # Give __new__ the same signature and docstring
+        # as _call, useful for help() and for docs.
+        def sub_new(cls, *args, **kwargs):
+            return Type.__new__(cls, *args, **kwargs)
+
+        # Get the signature of cls._call._func and not
+        # cls._call so that the first parameter (the class)
+        # gets included, so help() and the docs aren't confused.
+        sub_new.__signature__ = inspect.signature(cls._call.__func__)
+        sub_new.__doc__       = cls._call.__doc__
+
+        cls.__new__ = sub_new
+
     def __init__(self, *, _name=None):
         self._name = _name
 
@@ -65,6 +79,9 @@ class Type(abc.ABC):
         """
 
         if cls._default is not None:
+            if inspect.ismethod(cls._default):
+                return cls._default(ctx=ctx)
+
             if isinstance(cls._default, VersionSwitcher):
                 default = cls._default[ctx.version]
             else:
@@ -107,5 +124,14 @@ class Type(abc.ABC):
         return cls._pack(value, ctx=ctx)
 
     @classmethod
-    def _call(cls, *args, **kwargs):
+    def make_type(cls, name, bases=None, **namespace):
+        if bases is None:
+            bases = (cls,)
+
+        namespace["__module__"] = cls.__module__
+
+        return type(name, bases, namespace)
+
+    @classmethod
+    def _call(cls):
         raise NotImplementedError

@@ -2,22 +2,19 @@ from ...versions import VersionRange
 from ...types import *
 from ..packet import *
 
-class Base(ClientboundPacket, LoginPacket):
-    pass
-
-class DisconnectLoginPacket(Base):
+class DisconnectLoginPacket(ClientboundPacket, LoginPacket):
     id = 0x00
 
     reason: Chat
 
-class EncryptionRequestPacket(Base):
+class EncryptionRequestPacket(ClientboundPacket, LoginPacket):
     id = 0x01
 
     server_id:    String(20)
     public_key:   RawByte[VarInt]
     verify_token: RawByte[VarInt]
 
-class LoginSuccessPacket(Base):
+class LoginSuccessPacket(ClientboundPacket, LoginPacket):
     id = 0x02
 
     uuid: {
@@ -27,12 +24,12 @@ class LoginSuccessPacket(Base):
 
     username: String(16)
 
-class SetCompressionPacket(Base):
+class SetCompressionPacket(ClientboundPacket, LoginPacket):
     id = 0x03
 
     threshold: VarInt
 
-class LoginPluginRequestPacket(Base):
+class LoginPluginRequestPacket(ClientboundPacket, LoginPacket):
     id = 0x04
 
     message_id: VarInt

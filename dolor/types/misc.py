@@ -14,7 +14,7 @@ class EmptyType(Type):
         pass
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         return None
 
     @classmethod

@@ -5,6 +5,16 @@ from ..packets import Packet, GenericPacket
 from .client import Client
 
 class DebugClient(Client):
+    """
+    A client that prints relevant packets.
+
+    .. code-block::
+
+        class MyDebugClient(DebugClient):
+            print_outgoing_packets = True
+            print_generic_packets  = True
+    """
+
     print_outgoing_packets = False
     print_generic_packets  = False
 

@@ -20,7 +20,7 @@ class Optional(Type):
         return cls.exists is None
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         if cls.has_function() and cls.exists(ctx.instance):
             return cls.elem_type.default(ctx=ctx)
 
@@ -69,7 +69,7 @@ class Optional(Type):
             attr   = exists
             exists = lambda x: getattr(x, attr)
 
-        return type(f"{cls.__name__}{elem_type.__name__}", (cls,), dict(
+        return cls.make_type(f"{cls.__name__}{elem_type.__name__}",
             elem_type = elem_type,
             exists    = exists,
-        ))
+        )

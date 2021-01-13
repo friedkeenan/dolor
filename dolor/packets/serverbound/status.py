@@ -1,13 +1,10 @@
 from ...types import *
 from ..packet import *
 
-class Base(ServerboundPacket, StatusPacket):
-    pass
-
-class RequestPacket(Base):
+class RequestPacket(ServerboundPacket, StatusPacket):
     id = 0x00
 
-class PingPacket(Base):
+class PingPacket(ServerboundPacket, StatusPacket):
     id = 0x01
 
     payload: Long

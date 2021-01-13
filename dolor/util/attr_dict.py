@@ -1,7 +1,39 @@
+"""Contains :class:`~.AttrDict`"""
+
 import collections
 
 class AttrDict(collections.abc.MutableMapping):
-    def __new__(cls, name_or_elems=None, *args, **kwargs):
+    """A wrapper around :class:`dict` that also lets you access keys as attributes.
+
+    Parameters
+    ----------
+    name_or_elems : :class:`str` or :class:`dict`, optional
+        If a :class:`str`, then it will generate a new type
+        with that name that inherits from :class:`AttrDict`.
+
+        If a :class:`dict`, then it will use it as its
+        underlying dictionary.
+
+        If unspecified, then the initial underlying dictionary
+        will be empty.
+    kwargs
+        Will be used with :meth:`dict.update` to update
+        the underlying dictionary.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> MyAttrDict = dolor.util.AttrDict("MyAttrDict")
+    >>> MyAttrDict.__name__
+    'MyAttrDict'
+    >>> x = MyAttrDict(y=0)
+    >>> x.y
+    0
+    >>> x["y"]
+    0
+    """
+
+    def __new__(cls, name_or_elems=None, **kwargs):
         if not isinstance(name_or_elems, str):
             return super().__new__(cls)
 

@@ -22,4 +22,5 @@ except ImportError:
     pass
 
 # Delete type to stop builtin conflict
+from . import type
 del type

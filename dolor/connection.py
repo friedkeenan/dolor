@@ -1,3 +1,5 @@
+"""Contains :class:`~.Connection`."""
+
 import abc
 import asyncio
 import zlib
@@ -22,6 +24,42 @@ from .packets import (
 )
 
 class Connection:
+    """A connection between a client and a server.
+
+    Parameters
+    ----------
+    bound
+        Where read packets are bound. Either :mod:`~.serverbound` or :mod:`~.clientbound`.
+
+    Attributes
+    ----------
+    bound
+        Either :class:`~.ServerboundPacket` or :class:`~.ClientboundPacket`.
+        Used by :meth:`gen_packet_info` to populate the :attr:`packet_info`
+        attribute.
+    packet_info : :class:`dict`
+        A dictionary whose keys are packet id's and whose values
+        are subclasses of :class:`~.Packet`. Populated by :meth:`gen_packet_info`
+        and used by :meth:`read_packet` to determine which id corresponds to
+        which subclass of :class:`~.Packet`.
+    read_lock : :class:`asyncio.Lock`
+        The lock to make sure packet reads don't overlap.
+    specific_reads : :class:`dict`
+        A dictionary whose keys are subclasses of :class:`~.Packet`
+        and whose values are :class:`~.AsyncValueHolder`.
+
+        Used in :meth:`dispatch_packet` to send packets to specific reads
+        that were made with :meth:`read_packet`.
+    reader : :class:`asyncio.StreamReader`
+        The reader for receiving packet data.
+    writer : :class:`asyncio.StreamWriter`
+        The writer for writing packet data.
+    comp_threshold : :class:`int`
+        The maximum size of a packet before it's compressed.
+
+        If less than or equal to 0, then compression is disabled.
+    """
+
     def __init__(self, bound):
         self.bound = {
             serverbound: ServerboundPacket,
@@ -39,6 +77,21 @@ class Connection:
         self.comp_threshold = 0
 
     def gen_packet_info(self, state, *, ctx=None):
+        """Generates the :attr:`packet_info`.
+
+        Parameters
+        ----------
+        state : :class:`~.State`
+            Which state the packet info is for.
+        ctx : :class:`~.PacketContext`, optional
+            Which context the packet info is for.
+
+        Returns
+        -------
+        :class:`dict`
+            The packet info. See :attr:`packet_info` for a more thorough description.
+        """
+
         state_class = {
             enums.State.Handshaking: HandshakingPacket,
             enums.State.Status:      StatusPacket,
@@ -58,6 +111,8 @@ class Connection:
 
     @property
     def ctx(self):
+        """The connection's :class:`~.PacketContext`."""
+
         return self._ctx
 
     @ctx.setter
@@ -71,6 +126,8 @@ class Connection:
 
     @property
     def current_state(self):
+        """The current :class:`~.State` of the connection."""
+
         return self._current_state
 
     @current_state.setter
@@ -83,13 +140,28 @@ class Connection:
             pass
 
     def is_closing(self):
+        """Checks if the connection is closed or being closed.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the connection is closed or being closed.
+        """
+
         return self.writer is not None and self.writer.is_closing()
 
     def close(self):
+        """Closes the connection.
+
+        Should be used alongside the :meth:`wait_closed` method.
+        """
+
         if self.writer is not None:
             self.writer.close()
 
     async def wait_closed(self):
+        """Waits until the connection is closed."""
+
         if self.writer is not None:
             await self.writer.wait_closed()
 
@@ -104,20 +176,47 @@ class Connection:
         await self.wait_closed()
 
     def enable_encryption(self, shared_secret):
+        """Enables encryption for the connection.
+
+        Parameters
+        ----------
+        shared_secret
+            The shared secret, either gotten from :func:`~.gen_shared_secret`
+            or decrypted from :class:`~.EncryptionResponsePacket`.
+        """
+
         cipher = encryption.gen_cipher(shared_secret)
 
-        self.reader = encryption.EncryptedFileObject(self.reader, cipher.decryptor(), None)
-        self.writer = encryption.EncryptedFileObject(self.writer, None, cipher.encryptor())
+        self.reader = encryption.EncryptedStream(self.reader, cipher.decryptor(), None)
+        self.writer = encryption.EncryptedStream(self.writer, None, cipher.encryptor())
 
     def create_packet(self, pack_class, **kwargs):
-        """
-        Utility method for creating a packet
-        with the correct context.
+        """Creates a packet with the connection's :attr:`ctx` attribute.
+
+        Parameters
+        ----------
+        pack_class : subclass of :class:`~.Packet`
+            The packet to create.
+        kwargs
+            The attributes of the packet to set.
+
+        Returns
+        -------
+        :class:`~.Packet`
+            The created packet.
         """
 
         return pack_class(ctx=self.ctx, **kwargs)
 
     def dispatch_packet(self, packet):
+        """Dispatches a packet to calls of :meth:`read_packet` which specified `read_class`.
+
+        Parameters
+        ----------
+        packet : :class:`~.Packet`
+            The packet to dispatch.
+        """
+
         to_remove = []
 
         for pack_class, holder in self.specific_reads.items():
@@ -129,17 +228,28 @@ class Connection:
             self.specific_reads.pop(pack_class)
 
     async def read_packet(self, read_class=None):
-        """
-        Reads a packet.
+        """Reads a packet.
 
-        If read_class is not None, then
-        it will return the next packet
-        of that class. Requires this
-        function to be called with no
-        arguments elsewhere to work.
+        Parameters
+        ----------
+        read_class : subclass of :class:`~.Packet`, optional
+            The packet you want to read. If unspecified, whatever
+            the next packet is will be returned. Requires this method
+            to be called elsewhere with `read_class` unspecified to work.
 
-        Will return None and close the
-        connection if eof is reached.
+        Returns
+        -------
+        :class:`~.Packet` or None
+            If EOF is reached when reading the packet, then the connection
+            will be closed and None will be returned. Otherwise the read
+            packet will be returned.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If compression is enabled and the data length of the packet
+            is greater than 0 but less than or equal to the
+            :attr:`comp_threshold` attribute.
         """
 
         if read_class is not None:
@@ -188,7 +298,7 @@ class Connection:
             data_len = VarInt.unpack(data, ctx=self.ctx)
 
             if data_len > 0:
-                if data_len < self.comp_threshold:
+                if data_len <= self.comp_threshold:
                     self.close()
                     await self.wait_closed()
 
@@ -209,19 +319,33 @@ class Connection:
         return packet
 
     async def write_packet(self, packet, **kwargs):
-        """
-        Writes a packet.
+        """Writes a packet.
 
-        Returns the written packet.
+        Parameters
+        ----------
+        packet : subclass of :class:`~.Packet` or :class:`~.Packet`
+            If a subclass of :class:`~.Packet`, then the packet to write
+            will be created by forwarding `packet` and `kwargs` to the
+            :meth:`create_packet` method. Otherwise, `packet` is the
+            packet to write.
 
-        packet can be either a Packet object,
-        or it can be a Packet class, and then
-        the sent packet will be made using that
-        class and the keyword arguments.
+            `packet` being a subclass of :class:`~.Packet` is preferred
+            so that the packet is created with the correct context for
+            the connection.
+        kwargs
+            The packet attributes to set. Only able to be passed if
+            `packet` is a subclass of :class:`~.Packet`.
 
-        packet being a Packet class is preferred
-        because then the context will be correctly
-        passed to the sent packet.
+        Returns
+        -------
+        subclass of :class:`~.Packet`
+            The written packet.
+
+        Raises
+        ------
+        :exc:`TypeError`
+            If `kwargs` is passed but `packet` isn't a subclass of
+            :class:`~.Packet`.
         """
 
         if isinstance(packet, type):
@@ -243,9 +367,6 @@ class Connection:
         data = VarInt.pack(len(data), ctx=self.ctx) + data
 
         self.writer.write(data)
-        await self.drain()
+        await self.writer.drain()
 
         return packet
-
-    async def drain(self):
-        await self.writer.drain()

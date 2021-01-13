@@ -1,3 +1,5 @@
+__version__ = "0.1.0"
+
 from . import enums
 from . import util
 from . import versions

@@ -48,7 +48,7 @@ class Array(Type):
         super().__set__(instance, value)
 
     @classmethod
-    def default(cls, *, ctx=None):
+    def _default(cls, *, ctx=None):
         if cls.is_raw_byte():
             return bytearray(cls.real_size(ctx=ctx))
 
@@ -109,11 +109,16 @@ class Array(Type):
     def _call(cls, elem_type, size=None):
         elem_type = handle_dict_type(elem_type)
 
+        if isinstance(size, type):
+            size_name = size.__name__
+        else:
+            size_name = repr(size)
+
         if isinstance(size, str):
             attr = size
             size = lambda x: getattr(x, attr)
 
-        return type(f"{elem_type.__name__}Array", (cls,), dict(
+        return cls.make_type(f"{elem_type.__name__}[{size_name}]",
             elem_type = elem_type,
             size      = size,
-        ))
+        )

@@ -58,11 +58,11 @@ class String(Type):
         if length > max_length:
             raise ValueError(f"String length ({length}) higher than maximum length of {max_length}")
 
-        return type(f"String({length})", (cls,), dict(
+        return cls.make_type(f"String({length})",
             max_length = max_length,
             length     = length,
             prefix     = prefix,
-        ))
+        )
 
 class Json(Type):
     _default = {}

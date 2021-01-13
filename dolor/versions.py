@@ -1,11 +1,48 @@
+"""Version handling."""
+
 import inspect
 
 from . import util
 
 class Version:
+    """A version of Minecraft.
+
+    :meta no-undoc-members:
+
+    Parameters
+    ----------
+    name : :class:`str` or :class:`int` or :class:`Version` or None
+        If :class:`str`, then the version's name.
+
+        If :class:`int`, then the version's protocol version.
+        The name of the version will be looked up using
+        :meth:`name_from_proto`.
+
+        If :class:`Version`, the :attr:`name` and :attr:`proto`
+        attributes will be copied.
+
+        If None, then it will bypass any check that the
+        version is supported.
+    proto : :class:`int`, optional
+        The version's protocol version. If unspecified, it will
+        look up the protocol version from :attr:`supported_versions`.
+    check_supported : :class:`bool`, optional
+        Whether or not to check if the version is supported.
+        Will be ignored if `name` is None.
+
+    Attributes
+    ----------
+    name : :class:`str`
+        The version's name.
+    proto : :class:`int`
+        The version's protocol version.
+    supported_versions : :class:`dict`
+        A chronologically-ordered dictionary with version names as keys
+        and the corresponding protocol version as values.
+    """
+
     PRERELEASE = util.bit(30)
 
-    # Must be ordered chronologically
     supported_versions = {
         "1.15.2":      578,
 
@@ -79,16 +116,41 @@ class Version:
         None: -1,
     }
 
+    # Cached so it doesn't need to be
+    # regenerated on every comparison
+    _supported_versions_list = list(supported_versions)
+
     @classmethod
     def latest(cls):
+        """Gets the latest supported version.
+
+        Returns
+        -------
+        :class:`Version`
+            The latest supported version.
+        """
+
         for name in reversed(cls.supported_versions):
             if name is not None:
-                return name
+                return cls(name)
 
-        return None
+        return cls(None)
 
     @classmethod
     def name_from_proto(cls, proto):
+        """Gets the version name corresponding to the protocol version.
+
+        Parameters
+        ----------
+        proto : :class:`int`
+            The protocol version.
+
+        Returns
+        -------
+        :class:`str`
+            The corresponding version name.
+        """
+
         # Potential issue when versions have
         # overlapping protocol versions
 
@@ -99,6 +161,10 @@ class Version:
         return None
 
     def __init__(self, name, proto=-1, *, check_supported=False):
+        if isinstance(name, Version):
+            proto = name.proto
+            name  = name.name
+
         if isinstance(name, int):
             proto = name
             name  = self.name_from_proto(name)
@@ -114,19 +180,69 @@ class Version:
             self.proto = proto
 
     def __eq__(self, other):
+        """Checks whether a version is equal to another.
+
+        Parameters
+        ----------
+        other : :class:`Version` or :class:`str`
+            The other version.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the version is equal to `other`.
+
+        Examples
+        --------
+        >>> from dolor.versions import Version
+        >>> Version("1.16.4") == Version("1.16.4")
+        True
+        >>> Version("1.16.4") == "1.16.4"
+        True
+        >>> Version("1.16.4") == "1.15.2"
+        False
+        """
+
         if isinstance(other, Version):
             other = other.name
 
+        # Should we check protocol version instead?
         return self.name == other
 
     def __ne__(self, other):
         return not self == other
 
+    def __hash__(self):
+        return hash(self.name)
+
     def __gt__(self, other):
+        """Checks whether a version is greater than another.
+
+        Parameters
+        ----------
+        other : :class:`Version` or :class:`str`
+            The other version.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the version is greater than `other`.
+
+        Examples
+        --------
+        >>> from dolor.versions import Version
+        >>> Version("1.16.4") > Version("1.15.2")
+        True
+        >>> Version("1.16.4") > "1.15.2"
+        True
+        >>> Version("1.15.2") > "1.16.4"
+        False
+        """
+
         if isinstance(other, Version):
             other = other.name
 
-        versions = list(self.supported_versions)
+        versions = self._supported_versions_list
 
         return versions.index(self.name) > versions.index(other)
 
@@ -134,10 +250,33 @@ class Version:
         return self == other or self > other
 
     def __lt__(self, other):
+        """Checks whether a version is less than another.
+
+        Parameters
+        ----------
+        other : :class:`Version` or :class:`str`
+            The other version.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the version is less than `other`.
+
+        Examples
+        --------
+        >>> from dolor.versions import Version
+        >>> Version("1.15.2") < Version("1.16.4")
+        True
+        >>> Version("1.15.2") < "1.16.4"
+        True
+        >>> Version("1.16.4") < "1.15.2"
+        False
+        """
+
         if isinstance(other, Version):
             other = other.name
 
-        versions = list(self.supported_versions)
+        versions = self._supported_versions_list
 
         return versions.index(self.name) < versions.index(other)
 
@@ -148,13 +287,49 @@ class Version:
         return f"{type(self).__name__}({repr(self.name)}, {repr(self.proto)})"
 
 class VersionRange:
+    """A range of versions.
+
+    A version is contained in the range when it is greater
+    than or equal to `start` and less than `stop`. In more
+    mathematical terms, the range is [`start`, `stop`), just like
+    the builtin :class:`range`.
+
+    Parameters
+    ----------
+    start : :class:`Version` or :class:`str` or None
+        The lower bound of the range. If None, then `start` will
+        not be checked when seeing if a version is contained
+        in the range.
+    stop : :class:`Version` or :class:`str` or None
+        The upper bound of the range. If None, then `stop` will
+        not be checked when seeing if a version is contained
+        in the range.
+
+    Examples
+    --------
+    >>> from dolor.versions import VersionRange
+    >>> "1.16" in VersionRange("1.15.2", "1.16.4")
+    True
+    >>> "1.16" in VersionRange(None, "1.16.4")
+    True
+    >>> "1.16" in VersionRange("1.15.2", None)
+    True
+    >>> "1.16" in VersionRange(None, None)
+    True
+    >>> "1.16" in VersionRange("1.16.2", "1.16.4")
+    False
+    >>> "1.15.2" in VersionRange("1.15.2", "1.16.4")
+    True
+    >>> "1.16.4" in VersionRange("1.15.2", "1.16.4")
+    False
+    """
+
     def __init__(self, start, stop):
         self.start = start
         self.stop  = stop
 
     def __contains__(self, value):
-        if not isinstance(value, Version):
-            value = Version(value)
+        value = Version(value)
 
         ret = True
 
@@ -167,6 +342,37 @@ class VersionRange:
         return ret
 
 class VersionSwitcher:
+    """A class to simplify getting different values based on different versions.
+
+    Parameters
+    ----------
+    switch : :class:`dict`
+        A dictionary whose keys can be:
+
+        - A :class:`function` which takes one argument (the version) and returns a :class:`bool`.
+        - A :class:`str` which is the version's name.
+        - A container (checked with :func:`~.is_container`) which contains versions.
+        - None, whose value will be the default if no other key fits a version.
+
+    Examples
+    --------
+    >>> from dolor.versions import VersionSwitcher, VersionRange
+    >>> switcher = VersionSwitcher({
+    ...     (lambda v: v == "1.16.4"): 0,
+    ...     "1.16.3": 1,
+    ...     VersionRange("1.16", "1.16.3"): 2,
+    ...     None: 4,
+    ... })
+    >>> switcher["1.16.4"]
+    0
+    >>> switcher["1.16.3"]
+    1
+    >>> switcher["1.16.1"]
+    2
+    >>> switcher["1.15.2"]
+    4
+    """
+
     def __init__(self, switch):
         for key in switch:
             if not inspect.isfunction(key) and not isinstance(key, str) and not util.is_container(key) and key is not None:
@@ -175,6 +381,10 @@ class VersionSwitcher:
         self.switch = switch
 
     def get(self, version):
+        """Gets the appropriate value for the version."""
+
+        version = Version(version)
+
         for key, value in self.switch.items():
             if key is None:
                 continue
@@ -183,8 +393,6 @@ class VersionSwitcher:
                 if key(version):
                     return value
             elif isinstance(key, str):
-                # Try to pass the index to the dictionary first instead?
-                # Might result in looping over it twice implicitly
                 if version == key:
                     return value
             elif util.is_container(key):
@@ -194,4 +402,6 @@ class VersionSwitcher:
         return self.switch[None]
 
     def __getitem__(self, version):
+        """Does the same as :meth:`get`."""
+
         return self.get(version)
