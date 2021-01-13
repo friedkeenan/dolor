@@ -43,7 +43,7 @@ class Type(abc.ABC):
         def sub_new(cls, *args, **kwargs):
             return Type.__new__(cls, *args, **kwargs)
 
-        # Get the signature of cls._call._func and not
+        # Get the signature of cls._call.__func__ and not
         # cls._call so that the first parameter (the class)
         # gets included, so help() and the docs aren't confused.
         sub_new.__signature__ = inspect.signature(cls._call.__func__)
