@@ -11,7 +11,7 @@ class Version:
 
     Parameters
     ----------
-    name : :class:`str` or :class:`int` or :class:`Version` or None
+    name : :class:`str` or :class:`int` or :class:`Version` or ``None``
         If :class:`str`, then the version's name.
 
         If :class:`int`, then the version's protocol version.
@@ -21,14 +21,14 @@ class Version:
         If :class:`Version`, the :attr:`name` and :attr:`proto`
         attributes will be copied.
 
-        If None, then it will bypass any check that the
-        version is supported.
+        If ``None``, then it will behave as if you had passed
+        :meth:`latest` as ``name``.
     proto : :class:`int`, optional
         The version's protocol version. If unspecified, it will
         look up the protocol version from :attr:`supported_versions`.
     check_supported : :class:`bool`, optional
         Whether or not to check if the version is supported.
-        Will be ignored if `name` is None.
+        Will be ignored if ``name`` is ``None``.
 
     Attributes
     ----------
@@ -112,8 +112,6 @@ class Version:
         "20w48a":      PRERELEASE | 7,
         "20w49a":      PRERELEASE | 8,
         "20w51a":      PRERELEASE | 9,
-
-        None: -1,
     }
 
     # Cached so it doesn't need to be
@@ -130,11 +128,7 @@ class Version:
             The latest supported version.
         """
 
-        for name in reversed(cls.supported_versions):
-            if name is not None:
-                return cls(name)
-
-        return cls(None)
+        return cls(cls._supported_versions_list[-1])
 
     @classmethod
     def name_from_proto(cls, proto):
@@ -149,6 +143,11 @@ class Version:
         -------
         :class:`str`
             The corresponding version name.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If no corresponding version name can be found.
         """
 
         # Potential issue when versions have
@@ -158,9 +157,12 @@ class Version:
             if proto == proto_version:
                 return name
 
-        return None
+        raise ValueError(f"No version name corresponds to protocol version {proto}")
 
     def __init__(self, name, proto=-1, *, check_supported=False):
+        if name is None:
+            name = self.latest()
+
         if isinstance(name, Version):
             proto = name.proto
             name  = name.name
@@ -169,8 +171,8 @@ class Version:
             proto = name
             name  = self.name_from_proto(name)
 
-        if check_supported and name is not None and name not in self.supported_versions:
-            raise ValueError(f"Unsupported version: {name}. If you know what you are doing, pass None instead.")
+        if check_supported and name not in self.supported_versions:
+            raise ValueError(f"Unsupported version: {name}")
 
         self.name = name
 
@@ -190,7 +192,7 @@ class Version:
         Returns
         -------
         :class:`bool`
-            Whether the version is equal to `other`.
+            Whether the version is equal to ``other``.
 
         Examples
         --------
@@ -226,7 +228,7 @@ class Version:
         Returns
         -------
         :class:`bool`
-            Whether the version is greater than `other`.
+            Whether the version is greater than ``other``.
 
         Examples
         --------
@@ -260,7 +262,7 @@ class Version:
         Returns
         -------
         :class:`bool`
-            Whether the version is less than `other`.
+            Whether the version is less than ``other``.
 
         Examples
         --------
@@ -290,18 +292,18 @@ class VersionRange:
     """A range of versions.
 
     A version is contained in the range when it is greater
-    than or equal to `start` and less than `stop`. In more
-    mathematical terms, the range is [`start`, `stop`), just like
+    than or equal to ``start`` and less than ``stop``. In more
+    mathematical terms, the range is [``start``, ``stop``), just like
     the builtin :class:`range`.
 
     Parameters
     ----------
-    start : :class:`Version` or :class:`str` or None
-        The lower bound of the range. If None, then `start` will
+    start : :class:`Version` or :class:`str` or ``None``
+        The lower bound of the range. If ``None``, then `start` will
         not be checked when seeing if a version is contained
         in the range.
-    stop : :class:`Version` or :class:`str` or None
-        The upper bound of the range. If None, then `stop` will
+    stop : :class:`Version` or :class:`str` or ``None``
+        The upper bound of the range. If ``None``, then `stop` will
         not be checked when seeing if a version is contained
         in the range.
 
@@ -352,7 +354,7 @@ class VersionSwitcher:
         - A :class:`function` which takes one argument (the version) and returns a :class:`bool`.
         - A :class:`str` which is the version's name.
         - A container (checked with :func:`~.is_container`) which contains versions.
-        - None, whose value will be the default if no other key fits a version.
+        - ``None``, whose value will be the default if no other key fits a version.
 
     Examples
     --------

@@ -8,16 +8,16 @@ def is_iterable(obj):
     Parameters
     ----------
     obj
-        The object to check. `obj` is iterable if it can
-        be used in the following expression:
+        The object to check. ``obj`` is iterable if it can
+        be used in the following expression::
 
-        >>> for x in obj: # doctest: +SKIP
-        ...     pass
+            for x in obj:
+                pass
 
     Returns
     -------
     :class:`bool`
-        Whether `obj` is iterable.
+        Whether ``obj`` is iterable.
     """
 
     try:
@@ -33,15 +33,15 @@ def is_container(obj):
     Parameters
     ----------
     obj
-        The object to check. `obj` is a container if it
-        can be used in the following expression:
+        The object to check. ``obj`` is a container if it
+        can be used in the following expression::
 
-        >>> x in obj # doctest: +SKIP
+            x in obj
 
     Returns
     -------
     :class:`bool`
-        Whether `obj` is a container.
+        Whether ``obj`` is a container.
     """
     return hasattr(obj, "__contains__") or is_iterable(obj)
 
@@ -56,7 +56,7 @@ def is_pathlike(obj):
     Returns
     -------
     :class:`bool`
-        Whether `obj` is pathlike.
+        Whether ``obj`` is pathlike.
     """
 
     return isinstance(obj, (str, os.PathLike))

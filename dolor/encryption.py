@@ -208,7 +208,7 @@ class EncryptedStream:
         Raises
         ------
         :exc:`asyncio.IncompleteReadError`
-            If EOF is reached before `length` can be read.
+            If EOF is reached before ``length`` can be read.
         """
 
         return self.decryptor.update(await self.f.readexactly(length))

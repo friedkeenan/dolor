@@ -34,12 +34,12 @@ def to_signed(val, bits=32):
         The value to convert.
     bits : :class:`int`, optional
         How many bits to use when converting
-        `val` to its signed counterpart.
+        ``val`` to its signed counterpart.
 
     Returns
     -------
     :class:`int`
-        `val`'s signed counterpart.
+        ``val``'s signed counterpart.
 
     Examples
     --------
@@ -64,12 +64,12 @@ def to_unsigned(val, bits=32):
         The value to convert.
     bits : :class:`int`, optional
         How many bits to use when converting
-        `val` to its unsigned counterpart.
+        ``val`` to its unsigned counterpart.
 
     Returns
     -------
     :class:`int`
-        `val`'s unsigned counterpart.
+        ``val``'s unsigned counterpart.
 
     Examples
     --------
@@ -93,7 +93,7 @@ def urshift(val, n, bits=32):
     val : :class:`int`
         The value to shift.
     n : :class:`int`
-        How many bits to shift `val`.
+        How many bits to shift ``val``.
     bits : :class:`int`, optional
         How many bits should be used for the "unsigned"
         part of "unsigned right shift".

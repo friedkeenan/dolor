@@ -22,7 +22,13 @@ class AsyncValueHolder:
         return self.value
 
     def set(self, value):
-        """Sets the value to be gotten with :meth:`get`."""
+        """Sets the value to be gotten with :meth:`get`.
+
+        Parameters
+        ----------
+        value
+            The value to set.
+        """
 
         self.value = value
         self.event.set()

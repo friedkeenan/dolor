@@ -14,7 +14,7 @@ def get_subclasses(*args):
     Returns
     -------
     :class:`set`
-        The subclasses of `args`.
+        The subclasses of ``args``.
     """
 
     ret = set()

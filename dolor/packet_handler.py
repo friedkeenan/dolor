@@ -98,12 +98,12 @@ class PacketHandler(abc.ABC):
             The packet listener.
         checkers : subclass of :class:`~.Packet` or :class:`int` or :class:`function`
             If a subclass of :class:`~.Packet`, then the listener will be called if
-            the packet is an instance of `checkers`.
+            the packet is an instance of ``checkers``.
 
             If an :class:`int`, then the listener will be called if the id of the
-            packet is equal to `checkers`.
+            packet is equal to ``checkers``.
 
-            If a :class:`function`, then `checkers` can either be a :class:`function`
+            If a :class:`function`, then ``checkers`` can either be a :class:`function`
             that returns a :class:`bool` and takes one argument, which represents the
             packet to check, or it can be a :class:`function` that returns a :class:`bool`
             and takes two arguments, the first being the relevant :class:`~.Connection`,
@@ -116,9 +116,9 @@ class PacketHandler(abc.ABC):
         Raises
         ------
         :exc:`TypeError`
-            If `func` isn't a coroutine function.
+            If ``func`` isn't a coroutine function.
         :exc:`ValueError`
-            If no `checkers` are specified.
+            If no ``checkers`` are specified.
         """
 
         if not asyncio.iscoroutinefunction(func):

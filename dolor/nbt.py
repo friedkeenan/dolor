@@ -27,16 +27,16 @@ class Tag(abc.ABC):
 
     Attributes
     ----------
-    id : :class:`int` or None
-        The tag's id. If None, then the tag will not be used in marshaling.
+    id : :class:`int` or ``None``
+        The tag's id. If ``None``, then the tag will not be used in marshaling.
     type : subclass of :class:`~.Type`
         The tag's underlying type. Used to automatically pack and unpack
-        the raw data of the tag. Must be able to be used without a
+        the raw data of the tag. Must be able to be used without a specified
         :class:`~.TypeContext`.
     value : any
         The tag's value.
-    root_name : :class:`str` or None
-        The tag's root name. If not None, then the tag will be treated
+    root_name : :class:`str` or ``None``
+        The tag's root name. If not ``None``, then the tag will be treated
         as a root tag.
     """
 
@@ -48,7 +48,7 @@ class Tag(abc.ABC):
         """Gets the tag whose id is `id`.
 
         Will search through the subclasses of :class:`Tag`,
-        ignoring subclasses whose :attr:`id` attribute is None.
+        ignoring subclasses whose :attr:`id` attribute is ``None``.
 
         Parameters
         ----------
@@ -58,7 +58,7 @@ class Tag(abc.ABC):
         Returns
         -------
         subclass of :class:`Tag`
-            The tag whose id is `id`.
+            The tag whose id is ``id``.
 
         Examples
         --------
@@ -182,7 +182,7 @@ class String(Tag):
     id = 8
 
     # Would be nicer to use Java's wack modified utf-8 but ew
-    type = types.String(prefix=types.UnsignedShort, max_length=65535)
+    type = types.String(prefix=types.UnsignedShort, max_length=0xffff)
 
 class List(Tag):
     """A List tag.
@@ -191,7 +191,7 @@ class List(Tag):
     ----------
     tag_or_value : subclass of :class:`Tag` or :class:`list`
         If a subclass of :class:`Tag`, then a new subclass of :class:`List`
-        will be generated with its :attr:`tag` attribute set to `tag_or_value`.
+        will be generated with its :attr:`tag` attribute set to ``tag_or_value``.
 
         Otherwise, :meth:`__init__` will continue on as normal.
     args, kwargs
@@ -378,13 +378,13 @@ def dump(obj, f=None, *, compression=None):
     Returns
     -------
     :class:`bytes` or :class:`int`
-        If `f` is unspecified, then :class:`bytes` will be returned.
-        Otherwise how many bytes were written to `f` will be returned.
+        If ``f`` is unspecified, then :class:`bytes` will be returned.
+        Otherwise how many bytes were written to ``f`` will be returned.
 
     Raises
     ------
     :exc:`ValueError`
-        If `obj` is not a root tag.
+        If ``obj`` is not a root tag.
 
     Examples
     --------

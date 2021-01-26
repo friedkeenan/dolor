@@ -5,13 +5,7 @@ from ..types import TypeContext, VarInt, RawByte, handle_dict_type
 
 class PacketContext:
     def __init__(self, version=None):
-        if isinstance(version, str):
-            version = Version(version)
-
-        self.version = version
-
-    def __eq__(self, other):
-        return self.version == other.version
+        self.version = Version(version)
 
 class Packet:
     id = None
@@ -31,7 +25,7 @@ class Packet:
                 # Change this so type's constructor calls __set_name__?
                 # Note: Names are set by type's constructor before
                 # __init_subclass__ is called, so a metaclass would be needed.
-                setattr(cls, attr, new_type(_name=attr))
+                setattr(cls, attr, new_type.descriptor(attr))
 
             cls.__annotations__.update(to_change)
         else:

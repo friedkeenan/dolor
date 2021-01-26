@@ -46,17 +46,17 @@ class String(Type):
         return cls.prefix.pack(len(data), ctx=ctx) + data
 
     @classmethod
-    def _call(cls, length=None, *, max_length=None, prefix=VarInt, encoding="utf-8"):
-        prefix = handle_dict_type(prefix)
-
-        if max_length is None:
-            max_length = cls.max_length
-
-        if length is None:
-            length = max_length
+    def _call(cls, length=None, *, max_length=None, prefix=None, encoding=None):
+        max_length = max_length or cls.max_length
+        length     = length or max_length
 
         if length > max_length:
             raise ValueError(f"String length ({length}) higher than maximum length of {max_length}")
+
+        prefix = prefix or cls.prefix
+        prefix = handle_dict_type(prefix)
+
+        encoding = encoding or cls.encoding
 
         return cls.make_type(f"String({length})",
             max_length = max_length,

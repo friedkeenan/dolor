@@ -235,13 +235,13 @@ class Connection:
         read_class : subclass of :class:`~.Packet`, optional
             The packet you want to read. If unspecified, whatever
             the next packet is will be returned. Requires this method
-            to be called elsewhere with `read_class` unspecified to work.
+            to be called elsewhere with ``read_class`` unspecified to work.
 
         Returns
         -------
-        :class:`~.Packet` or None
+        :class:`~.Packet` or ``None``
             If EOF is reached when reading the packet, then the connection
-            will be closed and None will be returned. Otherwise the read
+            will be closed and ``None`` will be returned. Otherwise the read
             packet will be returned.
 
         Raises
@@ -325,16 +325,16 @@ class Connection:
         ----------
         packet : subclass of :class:`~.Packet` or :class:`~.Packet`
             If a subclass of :class:`~.Packet`, then the packet to write
-            will be created by forwarding `packet` and `kwargs` to the
-            :meth:`create_packet` method. Otherwise, `packet` is the
+            will be created by forwarding ``packet`` and ``kwargs`` to the
+            :meth:`create_packet` method. Otherwise, ``packet`` is the
             packet to write.
 
-            `packet` being a subclass of :class:`~.Packet` is preferred
+            ``packet`` being a subclass of :class:`~.Packet` is preferred
             so that the packet is created with the correct context for
             the connection.
         kwargs
             The packet attributes to set. Only able to be passed if
-            `packet` is a subclass of :class:`~.Packet`.
+            ``packet`` is a subclass of :class:`~.Packet`.
 
         Returns
         -------
@@ -344,7 +344,7 @@ class Connection:
         Raises
         ------
         :exc:`TypeError`
-            If `kwargs` is passed but `packet` isn't a subclass of
+            If ``kwargs`` is passed but ``packet`` isn't a subclass of
             :class:`~.Packet`.
         """
 

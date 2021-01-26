@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--test", "-t", default="client")
-    parser.add_argument("--version", "-v", default=dolor.Version.latest())
+    parser.add_argument("--version", "-v", default=None)
     parser.add_argument("--port", "-p", default=25565, type=int)
 
     args = parser.parse_args()

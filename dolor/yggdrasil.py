@@ -30,15 +30,15 @@ class AuthenticationToken:
     access_token : :class:`str`, optional
         The client's access token.
     client_token : :class:`str`, optional
-        The client's client token. Must be present if `access_token` is specified.
+        The client's client token. Must be present if ``access_token`` is specified.
     username : :class:`str`, optional
         The client's username.
     password : :class:`str`, optional
-        The client's password. Must be present if `username` is specified.
+        The client's password. Must be present if ``username`` is specified.
 
     Attributes
     ----------
-    profile : :class:`Profile` or None
+    profile : :class:`Profile` or ``None``
         The authentication token's associated profile.
     """
 
@@ -85,10 +85,10 @@ class AuthenticationToken:
         """Ensures that the authentication token is authenticated.
 
         If :attr:`username` is populated, then :meth:`authenticate`
-        will be run. Else, if `try_validate` is `True`, then it
+        will be run. Else, if ``try_validate`` is ``True``, then it
         will see if the authentication token is valid by running
-        :meth:`validate`. If it's not valid or `try_validate` is
-        `False`, then :meth:`refresh` will be called.
+        :meth:`validate`. If it's not valid or ``try_validate`` is
+        ``False``, then :meth:`refresh` will be called.
 
         Parameters
         ----------
@@ -207,14 +207,14 @@ class AuthenticationToken:
             The endpoint to make the request to.
         data : :class:`dict`
             The data to send.
-        ok_status_code : :Class:`int`, optional
+        ok_status_code : :class:`int`, optional
             The status code to expect. Any other will result
             in an :exc:`YggdrasilError`.
 
         Returns
         -------
-        :class:`dict` or None
-            The data received from the Yggdrasil API. None is
+        :class:`dict` or ``None``
+            The data received from the Yggdrasil API. ``None`` is
             returned if an :exc:`aiohttp.ContentTypeError`
             is raised when getting the data.
 
