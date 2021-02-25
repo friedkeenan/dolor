@@ -107,6 +107,8 @@ class Version:
 
         "1.16.4":      754,
 
+        "1.16.5":      754,
+
         "20w45a":      PRERELEASE | 5,
         "20w46a":      PRERELEASE | 6,
         "20w48a":      PRERELEASE | 7,
@@ -116,7 +118,7 @@ class Version:
 
     # Cached so it doesn't need to be
     # regenerated on every comparison
-    _supported_versions_list = list(supported_versions)
+    _supported_versions_list = list(supported_versions.values())
 
     @classmethod
     def latest(cls):
@@ -150,10 +152,10 @@ class Version:
             If no corresponding version name can be found.
         """
 
-        # Potential issue when versions have
-        # overlapping protocol versions
+        # Prefers later version names when
+        # protocol versions are equal.
 
-        for name, proto_version in cls.supported_versions.items():
+        for name, proto_version in reversed(cls.supported_versions.items()):
             if proto == proto_version:
                 return name
 
@@ -205,17 +207,15 @@ class Version:
         False
         """
 
-        if isinstance(other, Version):
-            other = other.name
+        other = Version(other)
 
-        # Should we check protocol version instead?
-        return self.name == other
+        return self.proto == other.proto
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.proto)
 
     def __gt__(self, other):
         """Checks whether a version is greater than another.
@@ -241,12 +241,10 @@ class Version:
         False
         """
 
-        if isinstance(other, Version):
-            other = other.name
-
+        other = Version(other)
         versions = self._supported_versions_list
 
-        return versions.index(self.name) > versions.index(other)
+        return versions.index(self.proto) > versions.index(other.proto)
 
     def __ge__(self, other):
         return self == other or self > other
@@ -275,12 +273,10 @@ class Version:
         False
         """
 
-        if isinstance(other, Version):
-            other = other.name
-
+        other = Version(other)
         versions = self._supported_versions_list
 
-        return versions.index(self.name) < versions.index(other)
+        return versions.index(self.proto) < versions.index(proto)
 
     def __le__(self, other):
         return self == other or self < other
