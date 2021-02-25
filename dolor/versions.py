@@ -276,7 +276,7 @@ class Version:
         other = Version(other)
         versions = self._supported_versions_list
 
-        return versions.index(self.proto) < versions.index(proto)
+        return versions.index(self.proto) < versions.index(other.proto)
 
     def __le__(self, other):
         return self == other or self < other
