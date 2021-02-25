@@ -34,7 +34,7 @@ class Packet:
             cls.id = VersionSwitcher(cls.id)
 
     def __init__(self, *, buf=None, ctx=None, **kwargs):
-        if buf is not None and isinstance(buf, (bytes, bytearray)):
+        if buf is not None:
             buf = util.file_object(buf)
 
         self._fields = {}
