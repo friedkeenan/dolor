@@ -1,6 +1,7 @@
 """Utilities for checking object interfaces."""
 
 import os
+import io
 
 def is_iterable(obj):
     """Checks if an object is iterable.
@@ -60,3 +61,17 @@ def is_pathlike(obj):
     """
 
     return isinstance(obj, (str, os.PathLike))
+
+def file_object(obj):
+    """Converts an object to a file object.
+
+    Parameters
+    ----------
+    obj : file object or :class:`bytes` or :class:`bytearray`
+        The object to convert.
+    """
+
+    if isinstance(obj, (bytes, bytearray)):
+        return io.BytesIO(obj)
+
+    return obj

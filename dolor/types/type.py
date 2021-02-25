@@ -3,8 +3,8 @@
 import abc
 import inspect
 import copy
-import io
 
+from .. import util
 from ..versions import Version, VersionSwitcher
 
 class TypeContext:
@@ -179,8 +179,7 @@ class Type(abc.ABC):
 
     @classmethod
     def unpack(cls, buf, *, ctx=None):
-        if isinstance(buf, (bytes, bytearray)):
-            buf = io.BytesIO(buf)
+        buf = util.file_object(buf)
 
         return cls._unpack(buf, ctx=ctx)
 

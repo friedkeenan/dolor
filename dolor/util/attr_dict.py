@@ -16,7 +16,7 @@ class AttrDict(collections.abc.MutableMapping):
 
         If unspecified, then the initial underlying dictionary
         will be empty.
-    kwargs
+    **kwargs
         Will be used with :meth:`dict.update` to update
         the underlying dictionary.
 

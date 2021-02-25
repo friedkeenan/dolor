@@ -9,7 +9,7 @@ def packet_listener(*checkers, **kwargs):
 
     Parameters
     ----------
-    checkers, kwargs
+    *checkers, **kwargs
         See :meth:`PacketHandler.register_packet_listener`.
 
     Returns
@@ -96,19 +96,18 @@ class PacketHandler(abc.ABC):
         ----------
         func : coroutine function
             The packet listener.
-        checkers : subclass of :class:`~.Packet` or :class:`int` or :class:`function`
+        *checkers : subclass of :class:`~.Packet` or :class:`int` or :class:`function`
             If a subclass of :class:`~.Packet`, then the listener will be called if
-            the packet is an instance of ``checkers``.
+            the packet is an instance of that class.
 
             If an :class:`int`, then the listener will be called if the id of the
-            packet is equal to ``checkers``.
+            packet is equal to the passed :class:`int`.
 
-            If a :class:`function`, then ``checkers`` can either be a :class:`function`
-            that returns a :class:`bool` and takes one argument, which represents the
-            packet to check, or it can be a :class:`function` that returns a :class:`bool`
-            and takes two arguments, the first being the relevant :class:`~.Connection`,
-            and the second being the packet to check.
-        kwargs
+            If a :class:`function`, then the function can either return a :class:`bool`
+            and take one argument, which represents the packet to check, or it can
+            return a :class:`bool` and take two arguments, the first being the relevant
+            :class:`~.Connection`, and the second being the packet to check.
+        **kwargs
             Keyword arguments that must match the keyword arguments passed to
             :meth:`listeners_for_packet` for the packet listener to be included in
             its return.
@@ -118,7 +117,7 @@ class PacketHandler(abc.ABC):
         :exc:`TypeError`
             If ``func`` isn't a coroutine function.
         :exc:`ValueError`
-            If no ``checkers`` are specified.
+            If no checkers are specified.
         """
 
         if not asyncio.iscoroutinefunction(func):
@@ -157,7 +156,7 @@ class PacketHandler(abc.ABC):
 
         Parameters
         ----------
-        checkers, kwargs
+        *checkers, **kwargs
             See :meth:`register_packet_listener`.
 
         Returns
@@ -211,7 +210,7 @@ class PacketHandler(abc.ABC):
             The relevant connection.
         p : :class:`~.Packet`
             The packet to check.
-        kwargs
+        **kwargs
             The keyword arguments that should've been used to
             register the packet listener in :meth:`register_packet_listener`.
 

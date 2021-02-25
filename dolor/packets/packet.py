@@ -1,5 +1,4 @@
-import io
-
+from .. import util
 from ..versions import Version, VersionSwitcher
 from ..types import TypeContext, VarInt, RawByte, handle_dict_type
 
@@ -36,7 +35,7 @@ class Packet:
 
     def __init__(self, *, buf=None, ctx=None, **kwargs):
         if buf is not None and isinstance(buf, (bytes, bytearray)):
-            buf = io.BytesIO(buf)
+            buf = util.file_object(buf)
 
         self._fields = {}
         for attr, attr_type in self.enumerate_fields():

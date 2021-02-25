@@ -1,5 +1,6 @@
 import collections
 
+from .. import util
 from .type import Type
 from .version_switched import handle_dict_type
 
@@ -21,8 +22,7 @@ class Compound(Type):
 
     @classmethod
     def _call(cls, name=None, **elems):
-        name = name or cls.__name__
-
+        name = util.default(name, cls.__name__)
         elems = {x: handle_dict_type(y) for x, y in elems.items()}
 
         return cls.make_type(name,

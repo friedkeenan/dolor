@@ -8,13 +8,13 @@ def get_subclasses(*args):
 
     Parameters
     ----------
-    args : :class:`type`
+    *args : :class:`type`
         The types to get the subclasses of.
 
     Returns
     -------
     :class:`set`
-        The subclasses of ``args``.
+        The subclasses of ``*args``.
     """
 
     ret = set()
@@ -26,6 +26,28 @@ def get_subclasses(*args):
 
     return ret
 
+def default(value, default):
+    """Defaults a variable.
+
+    Parameters
+    ----------
+    value
+        The value to potentially default.
+    default
+        The default value.
+
+    Returns
+    -------
+    any
+        If ``value`` is ``None``, then ``default`` is returned,
+        else ``value`` is returned.
+    """
+
+    if value is None:
+        return default
+
+    return value
+
 class ZlibDecompressFile(io.IOBase):
     """A simple read-only file object for decompressing zlib data.
 
@@ -33,7 +55,7 @@ class ZlibDecompressFile(io.IOBase):
     ----------
     f
         The file object to wrap.
-    args, kwargs
+    *args, **kwargs
         Forwarded to :func:`zlib.decompressobj`.
     """
 

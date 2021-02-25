@@ -1,5 +1,6 @@
 import json
 
+from .. import util
 from .type import Type
 from .var_num import VarInt
 from .version_switched import handle_dict_type
@@ -47,16 +48,16 @@ class String(Type):
 
     @classmethod
     def _call(cls, length=None, *, max_length=None, prefix=None, encoding=None):
-        max_length = max_length or cls.max_length
-        length     = length or max_length
+        max_length = util.default(max_length, cls.max_length)
+        length     = util.default(length, max_length)
 
         if length > max_length:
             raise ValueError(f"String length ({length}) higher than maximum length of {max_length}")
 
-        prefix = prefix or cls.prefix
+        prefix = util.default(prefix, cls.prefix)
         prefix = handle_dict_type(prefix)
 
-        encoding = encoding or cls.encoding
+        encoding = util.default(encoding, cls.encoding)
 
         return cls.make_type(f"String({length})",
             max_length = max_length,

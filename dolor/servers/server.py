@@ -179,7 +179,7 @@ class Server(PacketHandler):
             favicon = base64.encodebytes(favicon).replace(b"\n", b"")
             favicon = f"data:image/png;base64,{favicon.decode('utf-8')}"
 
-        self.description = description or Chat.default()
+        self.description = util.default(description, Chat.default())
         self.favicon     = favicon
 
         self.offline        = offline
@@ -273,8 +273,11 @@ class Server(PacketHandler):
 
         async with c:
             self.append(c)
-            await self.listen(c)
-            self.remove(c)
+
+            try:
+                await self.listen(c)
+            finally:
+                self.remove(c)
 
     async def central_connection_task(self, c):
         tasks = [self.safe_connection_func(x) for x in self.connection_tasks]

@@ -124,8 +124,7 @@ class Tag(abc.ABC):
             The unpacked tag.
         """
 
-        if isinstance(buf, (bytes, bytearray)):
-            buf = io.BytesIO(buf)
+        buf = util.file_object(buf)
 
         if root:
             root_name = String.unpack(buf).value
@@ -194,7 +193,7 @@ class List(Tag):
         will be generated with its :attr:`tag` attribute set to ``tag_or_value``.
 
         Otherwise, :meth:`__init__` will continue on as normal.
-    args, kwargs
+    *args, **kwargs
         Forwarded to :meth:`__init__`.
 
     Attributes
