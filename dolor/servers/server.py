@@ -88,11 +88,11 @@ class ServerConnection(connection.Connection):
         else:
             sender = sender.uuid
 
-        await self.write_packet(clientbound.ChatMessagePacket(
+        await self.write_packet(clientbound.ChatMessagePacket,
             data     = message,
             position = position,
             sender   = sender,
-        ))
+        )
 
     def close(self):
         if not self.is_closing():
@@ -407,6 +407,8 @@ class Server(PacketHandler):
             await c.disconnect({
                 "translate": "multiplayer.disconnect.server_full",
             })
+
+            return
 
         if p.name in (x.name for x in self.connections):
             await c.disconnect({

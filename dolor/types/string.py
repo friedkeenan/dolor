@@ -8,61 +8,47 @@ from .version_switched import handle_dict_type
 class String(Type):
     prefix     = VarInt
     max_length = 32767
-    length     = None
 
     encoding = "utf-8"
 
     _default = ""
 
     @classmethod
-    def real_length(cls):
-        if cls.length is None:
-            return cls.max_length
-
-        return cls.length
-
-    @classmethod
     def _unpack(cls, buf, *, ctx=None):
         length = cls.prefix.unpack(buf, ctx=ctx)
 
-        if length > cls.real_length() * 4:
-            raise ValueError(f"Invalid data length ({length}) for String({cls.real_length()})")
+        if length > cls.max_length * 4:
+            raise ValueError(f"Invalid data length ({length}) for String({cls.max_length})")
 
         ret = buf.read(length).decode(cls.encoding)
 
-        if len(ret) > cls.real_length():
-            raise ValueError(f"Invalid character length ({len(ret)}) for String({cls.real_length()})")
+        if len(ret) > cls.max_length:
+            raise ValueError(f"Invalid character length ({len(ret)}) for String({cls.max_length})")
 
         return ret
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
-        if len(value) > cls.real_length():
-            raise ValueError(f"Invalid character length ({len(value)}) for String({cls.real_length()})")
+        if len(value) > cls.max_length:
+            raise ValueError(f"Invalid character length ({len(value)}) for String({cls.max_length})")
 
         data = value.encode(cls.encoding)
-        if len(data) > cls.real_length() * 4:
-            raise ValueError(f"Invalid data length ({len(data)}) for String({cls.real_length()})")
+        if len(data) > cls.max_length * 4:
+            raise ValueError(f"Invalid data length ({len(data)}) for String({cls.max_length})")
 
         return cls.prefix.pack(len(data), ctx=ctx) + data
 
     @classmethod
-    def _call(cls, length=None, *, max_length=None, prefix=None, encoding=None):
-        max_length = util.default(max_length, cls.max_length)
-        length     = util.default(length, max_length)
-
-        if length > max_length:
-            raise ValueError(f"String length ({length}) higher than maximum length of {max_length}")
-
+    def _call(cls, max_length, *, prefix=None, encoding=None):
         prefix = util.default(prefix, cls.prefix)
         prefix = handle_dict_type(prefix)
 
         encoding = util.default(encoding, cls.encoding)
 
-        return cls.make_type(f"String({length})",
+        return cls.make_type(f"String({max_length})",
             max_length = max_length,
-            length     = length,
             prefix     = prefix,
+            encoding   = encoding,
         )
 
 class Json(Type):

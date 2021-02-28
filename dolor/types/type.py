@@ -14,7 +14,7 @@ class TypeContext:
     ----------
     instance : :class:`~.Packet`, optional
         The packet instance that's being marshaled.
-    ctx : :class:`~.PacketContext` or :class:`~.Version` or :class:`str`
+    ctx : :class:`~.PacketContext` or :class:`~.Version` or :class:`str` or :class:`int`, optional
         The context for the packet or the version to use for marshaling.
 
     Attributes
@@ -28,13 +28,52 @@ class TypeContext:
     def __init__(self, instance=None, ctx=None):
         self.instance = instance
 
-        if ctx is None or isinstance(ctx, (Version, str)):
+        if ctx is None or isinstance(ctx, (Version, str, int)):
             self.version = Version(ctx)
         else:
             self.version = ctx.version
 
 class Type(abc.ABC):
-    """Base class for types of packet fields."""
+    """Base class for types of packet fields.
+
+    This class is used for marshaling raw data (typically in
+    packets) to and from values, and it has some interesting quirks.
+
+    For one, calling their constructor doesn't really construct
+    them, but rather make new types. Take :class:`~.string.String`
+    for instance: It can take an argument for the string's maximum
+    length::
+
+        >>> import dolor
+        >>> dolor.types.String.max_length
+        32767
+        >>> s = dolor.types.String(20)
+        >>> s
+        <class 'dolor.types.string.String(20)'>
+        >>> s.max_length
+        20
+
+    To really get a :class:`Type` object, use the :meth:`descriptor`
+    method, like so::
+
+        >>> import dolor
+        >>> dolor.types.VarInt.descriptor("attr_name") # doctest: +SKIP
+        <dolor.types.var_num.VarInt object at 0x7fe5ad4e5490>
+
+    You can also generate arrays of types like so::
+
+        >>> import dolor
+        >>> dolor.types.Short[1]
+        <class 'dolor.types.array.Short[1]'>
+
+    .. seealso::
+
+        :meth:`__class_getitem__`
+
+    To marshal data to a value, see the :meth:`unpack` method.
+
+    To marshal a value to data, see the :meth:`pack` method.
+    """
 
     _default = None
 
@@ -47,7 +86,7 @@ class Type(abc.ABC):
         :class:`~.VersionSwitcher`.
 
         It also sets :meth:`__new__` to :meth:`_call`. If you
-        wish to initialize a :class:`Type`, see :meth:`descriptor`.
+        want to initialize a :class:`Type`, see :meth:`descriptor`.
         """
 
         super().__init_subclass__(**kwargs)
@@ -100,8 +139,8 @@ class Type(abc.ABC):
 
         Examples
         --------
-        >>> from dolor.types import *
-        >>> VarInt[1]
+        >>> import dolor
+        >>> dolor.types.VarInt[1]
         <class 'dolor.types.array.VarInt[1]'>
         """
 
@@ -158,11 +197,75 @@ class Type(abc.ABC):
         return copy.deepcopy(default)
 
     @classmethod
+    def unpack(cls, buf, *, ctx=None):
+        """Gets the corresponding value from the buffer.
+
+        Warnings
+        --------
+        Do **not** override this method. Instead override
+        :meth:`_unpack`.
+
+        Parameters
+        ----------
+        buf : file object or :class:`bytes` or :class:`bytearray`
+            The buffer containing the raw data.
+        ctx : :class:`TypeContext`, optional
+
+        Returns
+        -------
+        any
+            The corresponding value from the buffer.
+        """
+
+        buf = util.file_object(buf)
+
+        return cls._unpack(buf, ctx=ctx)
+
+    @classmethod
+    def pack(cls, value, *, ctx=None):
+        """Packs a value into raw data.
+
+        Warnings
+        --------
+        Do **not** override this method. Instead override
+        :meth:`pack`.
+
+        Parameters
+        ----------
+        value
+            The value to pack.
+        ctx : :class:`TypeContext`, optional
+
+        Returns
+        -------
+        :class:`bytes`
+            The corresponding raw data.
+        """
+
+        return cls._pack(value, ctx=ctx)
+
+    @classmethod
     @abc.abstractmethod
     def _unpack(cls, buf, *, ctx=None):
-        """
-        Should return the value that corresponds
-        to the raw data in the buffer.
+        """Gets the corresponding value from the buffer.
+
+        To be overridden by subclasses.
+
+        Warnings
+        --------
+        Do not use this method directly, **always** use
+        :meth:`unpack` instead.
+
+        Parameters
+        ----------
+        buf : file object
+            The buffer containing the raw data.
+        ctx : :class:`TypeContext`, optional
+
+        Returns
+        -------
+        any
+            The corresponding value from the buffer.
         """
 
         raise NotImplementedError
@@ -170,25 +273,56 @@ class Type(abc.ABC):
     @classmethod
     @abc.abstractmethod
     def _pack(cls, value, *, ctx=None):
-        """
-        Should return the bytes that corresponds
-        to the value argument.
+        """Packs a value into raw data.
+
+        To be overridden by subclasses.
+
+        Warnings
+        --------
+        Do not use this method directly, **always** use
+        :meth:`pack` instead.
+
+        Parameters
+        ----------
+        value
+            The value to pack.
+        ctx : :class:`TypeContext`, optional
+
+        Returns
+        -------
+        :class:`bytes`
+            The corresponding raw data.
         """
 
         raise NotImplementedError
 
     @classmethod
-    def unpack(cls, buf, *, ctx=None):
-        buf = util.file_object(buf)
-
-        return cls._unpack(buf, ctx=ctx)
-
-    @classmethod
-    def pack(cls, value, *, ctx=None):
-        return cls._pack(value, ctx=ctx)
-
-    @classmethod
     def make_type(cls, name, bases=None, **namespace):
+        """Utility for generating new types.
+
+        The generated type's :attr:`__module__` attribute is
+        set to be the same as the origin type's. This is done to
+        get around an issue where generated types would have
+        their :attr:`__module__` attribute be ``"abc"`` because
+        :class:`Type` inherits from :class:`abc.ABC`.
+
+        Parameters
+        ----------
+        name : :class:`str`
+            The generated type's name.
+        bases : :class:`tuple`, optional
+            The generated type's base classes. If unspecified, the
+            origin type is the sole base class.
+        **namespace
+            The attributes and corresponding values of the generated
+            type.
+
+        Returns
+        -------
+        subclass of :class:`Type`
+            The generated type.
+        """
+
         if bases is None:
             bases = (cls,)
 
@@ -198,4 +332,11 @@ class Type(abc.ABC):
 
     @classmethod
     def _call(cls):
+        """Called when the type's constructor is called.
+
+        The arguments passed to the constructor get forwarded
+        to this method. typically overridden to enable
+        generating new types.
+        """
+
         raise NotImplementedError

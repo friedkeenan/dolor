@@ -113,7 +113,7 @@ class Tag(abc.ABC):
 
         Parameters
         ----------
-        buf : :class:`bytes` or :class:`bytearray` or file object
+        buf : file object or :class:`bytes` or :class:`bytearray`
             The buffer to unpack.
         root : :class:`bool`, optional
             Whether the tag is a root tag.
@@ -311,8 +311,11 @@ def load(f):
 
     Parameters
     ----------
-    f : :class:`bytes` or :class:`bytearray` or file object
-        The data to load. May be uncompressed, gzip'd, or zlib'd.
+    f : pathlike or :class:`bytes` or :class:`bytearray` or file object
+        If a pathlike, then the path to the file to read from.
+        Otherwise the data to load.
+
+        The data may be uncompressed, gzip'd, or zlib'd.
 
     Returns
     -------
@@ -328,11 +331,11 @@ def load(f):
 
     should_close = False
 
-    if isinstance(f, (bytes, bytearray)):
-        f = io.BytesIO(f)
-    elif util.is_pathlike(f):
+    if util.is_pathlike(f):
         f = open(f, "rb")
         should_close = True
+    else:
+        f = util.file_object(f)
 
     magic = f.read(2)
     f.seek(-2, 1)

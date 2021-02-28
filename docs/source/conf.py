@@ -36,6 +36,7 @@ extensions = [
     "sphinx.ext.doctest",
 ]
 
+napoleon_include_private_with_doc = True
 napoleon_include_special_with_doc = True
 
 add_module_names     = False
