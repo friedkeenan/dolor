@@ -101,12 +101,6 @@ class Type(abc.ABC):
         # an instance of Type.
         cls.__new__ = cls._call.__func__
 
-        # Prevents parent docstring for _call
-        # from appearing with the subclass in
-        # the docs.
-        if cls.__new__ is Type._call.__func__:
-            cls.__new__.__doc__ = None
-
     @classmethod
     def descriptor(cls, name):
         """Gets the descriptor form of the type.
@@ -338,11 +332,10 @@ class Type(abc.ABC):
 
     @classmethod
     def _call(cls):
-        """Called when the type's constructor is called.
-
-        The arguments passed to the constructor get forwarded
-        to this method. typically overridden to enable
-        generating new types.
-        """
+        # Called when the type's constructor is called.
+        #
+        # The arguments passed to the constructor get forwarded
+        # to this method. typically overridden to enable
+        # generating new types.
 
         raise NotImplementedError
