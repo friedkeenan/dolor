@@ -1,6 +1,6 @@
 from .. import util
 from .type import Type
-from .simple import UnsignedLong
+from .numeric import UnsignedLong
 from .version_switched import handle_dict_type
 
 class Vector(Type):

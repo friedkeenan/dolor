@@ -1,7 +1,7 @@
-import math
+import struct
 
+from .. import util
 from .type import Type
-from .simple import UnsignedByte
 
 class EmptyType(Type):
     def __get__(self, instance, owner=None):
@@ -41,13 +41,25 @@ class RawByte(Type):
     def _pack(cls, value, *, ctx=None):
         return bytes(value[:1])
 
-class Angle(Type):
-    _default = 0
+class StructType(Type):
+    fmt = None
+
+    @classmethod
+    def real_fmt(cls):
+        return f">{cls.fmt}"
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
-        return math.tau * UnsignedByte.unpack(buf) / 256
+        ret = struct.unpack(cls.real_fmt(), buf.read(struct.calcsize(cls.real_fmt())))
+
+        if len(ret) == 1:
+            return ret[0]
+
+        return ret
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
-        return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau))
+        if util.is_iterable(value):
+            return struct.pack(cls.real_fmt(), *value)
+
+        return struct.pack(cls.real_fmt(), value)

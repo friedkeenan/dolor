@@ -25,7 +25,7 @@ def bit(n):
 
     return (1 << n)
 
-def to_signed(val, bits=32):
+def to_signed(val, *, bits=32):
     """Converts a number to its signed counterpart.
 
     Parameters
@@ -46,7 +46,7 @@ def to_signed(val, bits=32):
     >>> import dolor
     >>> dolor.util.to_signed(2**32 - 1)
     -1
-    >>> dolor.util.to_signed(2**64 - 1, 64)
+    >>> dolor.util.to_signed(2**64 - 1, bits=64)
     -1
     """
 
@@ -55,7 +55,7 @@ def to_signed(val, bits=32):
 
     return val
 
-def to_unsigned(val, bits=32):
+def to_unsigned(val, *, bits=32):
     """Converts a number to its unsigned counterpart.
 
     Parameters
@@ -76,7 +76,7 @@ def to_unsigned(val, bits=32):
     >>> import dolor
     >>> dolor.util.to_unsigned(-1)
     4294967295
-    >>> dolor.util.to_unsigned(-1, 64)
+    >>> dolor.util.to_unsigned(-1, bits=64)
     18446744073709551615
     """
 
@@ -85,7 +85,7 @@ def to_unsigned(val, bits=32):
 
     return val
 
-def urshift(val, n, bits=32):
+def urshift(val, n, *, bits=32):
     """Performs an unsigned right shift on a number.
 
     Parameters
@@ -110,8 +110,8 @@ def urshift(val, n, bits=32):
     1
     >>> dolor.util.urshift(-1, 1)
     2147483647
-    >>> dolor.util.urshift(-1, 1, 64)
+    >>> dolor.util.urshift(-1, 1, bits=64)
     9223372036854775807
     """
 
-    return to_unsigned(val, bits) >> n
+    return to_unsigned(val, bits=bits) >> n

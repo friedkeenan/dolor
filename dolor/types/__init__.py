@@ -1,6 +1,5 @@
 from .type import *
-from .simple import *
-from .var_num import *
+from .numeric import *
 from .string import *
 from .uuid import *
 from .chat import *

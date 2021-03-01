@@ -2,7 +2,7 @@ import json
 
 from .. import util
 from .type import Type
-from .var_num import VarInt
+from .numeric import VarInt
 from .version_switched import handle_dict_type
 
 class String(Type):

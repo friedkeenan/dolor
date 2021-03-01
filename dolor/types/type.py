@@ -58,7 +58,7 @@ class Type(abc.ABC):
 
         >>> import dolor
         >>> dolor.types.VarInt.descriptor("attr_name") # doctest: +SKIP
-        <dolor.types.var_num.VarInt object at 0x7fe5ad4e5490>
+        <dolor.types.numeric.VarInt object at 0x7fe5ad4e5490>
 
     You can also generate arrays of types like so::
 
@@ -100,6 +100,12 @@ class Type(abc.ABC):
         # a Type is separate from actually initializing
         # an instance of Type.
         cls.__new__ = cls._call.__func__
+
+        # Prevents parent docstring for _call
+        # from appearing with the subclass in
+        # the docs.
+        if cls.__new__ is Type._call.__func__:
+            cls.__new__.__doc__ = None
 
     @classmethod
     def descriptor(cls, name):

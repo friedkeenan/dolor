@@ -59,12 +59,11 @@ Types
     ~types.enum
     ~types.misc
     ~types.nbt
+    ~types.numeric
     ~types.optional
-    ~types.simple
     ~types.string
     ~types.type
     ~types.uuid
-    ~types.var_num
     ~types.vector
     ~types.version_switched
 
