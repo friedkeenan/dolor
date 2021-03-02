@@ -1,3 +1,5 @@
+"""Types for numbers."""
+
 import math
 
 from .. import util

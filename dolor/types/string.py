@@ -1,3 +1,5 @@
+"""String-related types."""
+
 import json
 
 from .. import util
@@ -6,10 +8,24 @@ from .numeric import VarInt
 from .version_switched import handle_dict_type
 
 class String(Type):
-    prefix     = VarInt
-    max_length = 32767
+    """A string.
 
-    encoding = "utf-8"
+    Parameters
+    ----------
+    max_length : :class:`int`
+        The maximum length of the string. By default ``32767``.
+    prefix : subclass of :class:`~.Type`, optional
+        The type at the start of the data that
+        tells how many bytes to read to get the
+        string data. By default :class:`~.VarInt`.
+    encoding : :class:`str`, optional
+        What encoding to use for parsing the string data.
+        By default ``"utf-8"``.
+    """
+
+    max_length = 32767
+    prefix     = VarInt
+    encoding   = "utf-8"
 
     _default = ""
 
@@ -52,6 +68,12 @@ class String(Type):
         )
 
 class Json(Type):
+    """JSON data.
+
+    Wraps :func:`json.loads` and `json.dumps` and
+    :class:`String`.
+    """
+
     _default = {}
 
     @classmethod
@@ -63,7 +85,20 @@ class Json(Type):
         return String.pack(json.dumps(value, separators=(",", ":")), ctx=ctx)
 
 class Identifier(Type):
+    """An identifier for a resource location."""
+
     class Identifier:
+        """The value type of :class:`~.string.Identifier`.
+
+        Parameters
+        ----------
+        id : :class:`str`, optional
+            The namespaced location.
+
+            See https://wiki.vg/Protocol#Identifier for
+            details.
+        """
+
         def __init__(self, id=None):
             if id is None:
                 self.namespace = None
@@ -73,10 +108,10 @@ class Identifier(Type):
 
                 if len(parts) == 1:
                     self.namespace = "minecraft"
-                    self.name = parts[0]
+                    self.name      = parts[0]
                 elif len(parts) == 2:
                     self.namespace = parts[0]
-                    self.name = parts[1]
+                    self.name      = parts[1]
                 else:
                     raise ValueError("Invalid identifier")
 
