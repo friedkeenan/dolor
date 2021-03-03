@@ -4,6 +4,37 @@ from .type import Type
 from .util import prepare_types
 
 class Enum(Type):
+    r"""Matches values from other types to :class:`enum.Enum` values.
+
+    The default value is the first member of the enum.
+
+    Parameters
+    ----------
+    elem_type : subclass of :class:`~.Type`
+        The base type to use to get the raw values.
+    enum_type : subclass of :class:`enum.Enum`
+        The enum type to translate values gotten
+        using ``elem_type``.
+
+    Examples
+    --------
+    >>> import enum
+    >>> import dolor
+    >>> class MyEnum(enum.Enum):
+    ...     A = 0
+    ...     B = 1
+    ...
+    >>> e = dolor.types.Enum(dolor.types.Byte, MyEnum)
+    >>> e
+    <class 'dolor.types.enum.ByteEnum(MyEnum)'>
+    >>> e.default()
+    <MyEnum.A: 0>
+    >>> e.pack(MyEnum.B)
+    b'\x01'
+    >>> e.unpack(b"\x01")
+    <MyEnum.B: 1>
+    """
+
     elem_type = None
     enum_type = None
 

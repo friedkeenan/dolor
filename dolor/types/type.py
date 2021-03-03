@@ -137,6 +137,11 @@ class Type(abc.ABC):
     def __class_getitem__(cls, index):
         """Gets an :class:`~.Array` of the type.
 
+        Parameters
+        ----------
+        index : :class:`int` or subclass of :class:`Type` or ``None``
+            The ``size`` argument passed to :class:`~.Array`.
+
         Examples
         --------
         >>> import dolor

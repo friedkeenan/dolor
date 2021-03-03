@@ -46,7 +46,7 @@ def prepare_type(obj):
     if isinstance(obj, type) and issubclass(obj, Type):
         return obj
 
-    raise TypeError(f"Object cannot be converted to Type: {obj}")
+    raise TypeError(f"Object cannot be converted to a Type: {obj}")
 
 def prepare_types(func):
     """A decorator that passes certain arguments are passed through :func:`prepare_type`.
@@ -65,7 +65,6 @@ def prepare_types(func):
             else x
 
             for x, y in args_annotations
-
         ]
 
         new_kwargs = {}
