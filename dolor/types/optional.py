@@ -1,7 +1,7 @@
 import inspect
 
 from .type import Type
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class Optional(Type):
     elem_type = None
@@ -62,9 +62,8 @@ class Optional(Type):
         return b""
 
     @classmethod
-    def _call(cls, elem_type, exists=None):
-        elem_type = handle_dict_type(elem_type)
-
+    @prepare_types
+    def _call(cls, elem_type: Type, exists=None):
         if isinstance(exists, str):
             attr   = exists
             exists = lambda x: getattr(x, attr)

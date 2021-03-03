@@ -1,5 +1,7 @@
+"""Enumeration types."""
+
 from .type import Type
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class Enum(Type):
     elem_type = None
@@ -18,9 +20,8 @@ class Enum(Type):
         return cls.elem_type.pack(value.value, ctx=ctx)
 
     @classmethod
-    def _call(cls, elem_type, enum_type):
-        elem_type = handle_dict_type(elem_type)
-
+    @prepare_types
+    def _call(cls, elem_type: Type, enum_type):
         return cls.make_type(f"{elem_type.__name__}Enum({enum_type.__name__})",
             elem_type = elem_type,
             enum_type = enum_type,

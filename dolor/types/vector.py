@@ -1,7 +1,7 @@
 from .. import util
 from .type import Type
 from .numeric import UnsignedLong
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class Vector(Type):
     class Vector:
@@ -54,9 +54,8 @@ class Vector(Type):
         return b"".join(cls.elem_type.pack(x) for x in value)
 
     @classmethod
-    def _call(cls, elem_type):
-        elem_type = handle_dict_type(elem_type)
-
+    @prepare_types
+    def _call(cls, elem_type: Type):
         return cls.make_type(f"{elem_type.__name__}Vector",
             elem_type = elem_type,
         )

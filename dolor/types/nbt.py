@@ -105,7 +105,7 @@ class NBT(Type):
                 tag       = switcher,
             )
 
-    class Default(Specialization):
+    class Defaulted(Specialization):
         elem_tag = None
 
         @classmethod

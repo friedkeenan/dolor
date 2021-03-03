@@ -1,6 +1,6 @@
 from .. import util
 from .type import Type
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class BitMask(Type):
     elem_type  = None
@@ -78,16 +78,9 @@ class BitMask(Type):
         return cls.elem_type.pack(value.value, ctx=ctx)
 
     @classmethod
-    def _call(cls, name_or_elem_type, elem_type=None, **masks):
-        if not isinstance(name_or_elem_type, str):
-            name      = cls.__name__
-            elem_type = name_or_elem_type
-        elif elem_type is None:
-            raise ValueError("Must specify underlying type")
-        else:
-            name = name_or_elem_type
-
+    @prepare_types
+    def _call(cls, name, elem_type: Type, **masks):
         return cls.make_type(name,
-            elem_type  = handle_dict_type(elem_type),
+            elem_type  = elem_type,
             value_type = cls.BitMask(name, **masks),
         )

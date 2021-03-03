@@ -2,7 +2,7 @@ import inspect
 
 from .type import Type
 from .misc import RawByte
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class Array(Type):
     elem_type = None
@@ -10,7 +10,7 @@ class Array(Type):
 
     @classmethod
     def is_raw_byte(cls):
-        return cls.elem_type == RawByte
+        return cls.elem_type is RawByte
 
     @classmethod
     def is_fixed_size(cls):
@@ -106,9 +106,8 @@ class Array(Type):
         return b"".join(cls.elem_type.pack(x, ctx=ctx) for x in value)
 
     @classmethod
-    def _call(cls, elem_type, size=None):
-        elem_type = handle_dict_type(elem_type)
-
+    @prepare_types
+    def _call(cls, elem_type: Type, size=None):
         if isinstance(size, type):
             size_name = size.__name__
         else:

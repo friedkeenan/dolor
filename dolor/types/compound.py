@@ -2,7 +2,7 @@ import collections
 
 from .. import util
 from .type import Type
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class Compound(Type):
     elems      = None
@@ -21,9 +21,9 @@ class Compound(Type):
         return b"".join(x.pack(value[i]) for i, x in enumerate(cls.elems.values()))
 
     @classmethod
-    def _call(cls, name=None, **elems):
+    @prepare_types
+    def _call(cls, name=None, **elems: Type):
         name = util.default(name, cls.__name__)
-        elems = {x: handle_dict_type(y) for x, y in elems.items()}
 
         return cls.make_type(name,
             elems      = elems,

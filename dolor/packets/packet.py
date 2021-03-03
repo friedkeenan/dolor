@@ -1,6 +1,6 @@
 from .. import util
 from ..versions import Version, VersionSwitcher
-from ..types import TypeContext, VarInt, RawByte, handle_dict_type
+from ..types import TypeContext, VarInt, RawByte, prepare_type
 
 class PacketContext:
     def __init__(self, version=None):
@@ -17,7 +17,7 @@ class Packet:
             to_change = {}
 
             for attr, attr_type in cls.__annotations__.items():
-                new_type = handle_dict_type(attr_type)
+                new_type = prepare_type(attr_type)
                 if new_type != attr_type:
                     to_change[attr] = new_type
 

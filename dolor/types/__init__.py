@@ -10,8 +10,10 @@ from .bit_mask import *
 from .compound import *
 from .optional import *
 from .default import *
-from .version_switched import *
+from .version import *
 from .misc import *
+
+from .util import *
 
 # .nbt depends on ..nbt, which depends on this module,
 # so only try to import it

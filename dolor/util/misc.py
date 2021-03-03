@@ -1,7 +1,8 @@
 """Miscellaneous utilities."""
 
-import zlib
 import io
+import inspect
+import zlib
 
 def get_subclasses(*args):
     """Gets the subclasses of the parameters.
@@ -47,6 +48,64 @@ def default(value, default):
         return default
 
     return value
+
+def arg_annotations(func, *args, **kwargs):
+    """Maps function arguments to their annotations.
+
+    Parameters
+    ----------
+    func : :class:`function`
+        The function to take annotations from.
+    *args, **kwargs
+        The arguments to map annotations to.
+
+    Returns
+    -------
+    args_annotations : :class:`list`
+        The annotations for ``*args``, of the form
+        ``[(value, annotation)]``.
+    kwargs_annotations : :class:`dict`
+        The annotations for ``*args``, of the form
+        ``{name: (value, annotation)}``.
+    """
+
+    parameters = inspect.signature(func).parameters
+
+    args_annotations   = []
+    kwargs_annotations = {}
+
+    i = 0
+    for i, (arg, param) in enumerate(zip(args, parameters.values())):
+        if param.kind == param.VAR_POSITIONAL:
+            args_annotations += [(x, param.annotation) for x in args[i:]]
+            break
+
+        args_annotations.append((arg, param.annotation))
+    else:
+        if i < len(args) - 1:
+            raise TypeError("Too many positional arguments")
+
+    # Find the **kwargs parameter
+    var_kwarg = None
+    for param in parameters.values():
+        if param.kind == param.VAR_KEYWORD:
+            var_kwarg = param
+            break
+
+    for name, value in kwargs.items():
+        param = parameters.get(name, var_kwarg)
+
+        # If no corresponding parameter is found
+        # and there's no var_kwarg
+        if param is None:
+            raise TypeError(f"Invalid keyword argument: {name}")
+
+        if param.kind == param.POSITIONAL_ONLY:
+            raise TypeError(f"Positional only argument: {name}")
+
+        kwargs_annotations[name] = (value, param.annotation)
+
+    return args_annotations, kwargs_annotations
 
 class ZlibDecompressFile(io.IOBase):
     """A simple read-only file object for decompressing zlib data.

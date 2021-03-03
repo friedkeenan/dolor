@@ -63,9 +63,10 @@ Types
     ~types.optional
     ~types.string
     ~types.type
+    ~types.util
     ~types.uuid
     ~types.vector
-    ~types.version_switched
+    ~types.version
 
 Utilities
 #########

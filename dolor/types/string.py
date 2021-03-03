@@ -5,7 +5,7 @@ import json
 from .. import util
 from .type import Type
 from .numeric import VarInt
-from .version_switched import handle_dict_type
+from .util import prepare_types
 
 class String(Type):
     """A string.
@@ -55,9 +55,9 @@ class String(Type):
         return cls.prefix.pack(len(data), ctx=ctx) + data
 
     @classmethod
-    def _call(cls, max_length, *, prefix=None, encoding=None):
+    @prepare_types
+    def _call(cls, max_length, *, prefix: Type = None, encoding=None):
         prefix = util.default(prefix, cls.prefix)
-        prefix = handle_dict_type(prefix)
 
         encoding = util.default(encoding, cls.encoding)
 
