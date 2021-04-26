@@ -18,7 +18,7 @@ class Compound(Type):
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
-        return b"".join(x.pack(value[i]) for i, x in enumerate(cls.elems.values()))
+        return b"".join(x.pack(value[i], ctx=ctx) for i, x in enumerate(cls.elems.values()))
 
     @classmethod
     @prepare_types

@@ -1,9 +1,13 @@
+"""UUID types."""
+
 import uuid
 
 from .type import Type
 from .string import String
 
 class UUID(Type):
+    """A UUID parsed from 16 bytes of data."""
+
     _default = uuid.UUID(int=0)
 
     @classmethod
@@ -15,6 +19,8 @@ class UUID(Type):
         return value.bytes
 
 class UUIDString(Type):
+    """A UUID parsed from a string representation."""
+
     string_type = String(36)
 
     _default = uuid.UUID(int=0)
