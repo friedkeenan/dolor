@@ -1,14 +1,18 @@
 version: 2
 
 build:
-  os: ubuntu-20.04
+  image: latest
   tools:
     python: "3.9"
 
 sphinx:
-   configuration: docs/source/conf.py
+  configuration: docs/source/conf.py
 
 python:
-   install:
-   - requirements: requirements.txt
-   - requirements: docs/requirements.txt
+  install:
+    - requirements: requirements.txt
+    - requirements: docs/requirements.txt
+
+    - method: pip
+
+    path: .
