@@ -19,9 +19,10 @@ import dolor
 # -- Project information -----------------------------------------------------
 
 project   = "dolor"
-copyright = "2021, dolor authors"
-author    = "dolor authors"
-version   = dolor.__version__
+copyright = "2021, friedkeenan"
+author    = "friedkeenan"
+release   = dolor.__version__
+
 
 # -- General configuration ---------------------------------------------------
 
@@ -34,6 +35,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.doctest",
+    "sphinx_copybutton",
 ]
 
 napoleon_include_private_with_doc = True
@@ -57,19 +59,14 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-import sphinx_rtd_theme
-
-html_theme      = "sphinx_rtd_theme"
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+html_theme = "furo"
 
 def process_docstring(app, what, name, obj, options, lines):
     # If an object's docstring has :meta no-undoc-members:,
     # then disable documenting members with no docstring.
+    #
+    # This workaround has to be used otherwise attributes will
+    # be documented twice because of sphinx bugs.
 
     to_remove = -1
 

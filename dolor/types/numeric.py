@@ -1,159 +1,91 @@
-"""Types for numbers."""
+"""Numeric types.
+
+The names for these types are based on the names from https://wiki.vg/
+so that our packet definitions may use the same terminology, despite
+the imprecise nature of the names.
+
+All numeric types are big endian.
+"""
 
 import math
+import pak
 
-from .. import util
-from .type import Type
-from .misc import StructType
+__all__ = [
+    "Boolean",
+    "Byte",
+    "UnsignedByte",
+    "Short",
+    "UnsignedShort",
+    "Int",
+    "UnsignedInt",
+    "Long",
+    "UnsignedLong",
+    "Float",
+    "Double",
+    "Angle",
+]
 
-class Boolean(StructType):
-    """A boolean that corresponds to a single byte."""
+class Boolean(pak.Bool):
+    """A single byte truth-value."""
 
-    _default = False
-    fmt      = "?"
+    endian = ">"
 
-class Byte(StructType):
+class Byte(pak.Int8):
     """A signed 8-bit integer."""
 
-    _default = 0
-    fmt      = "b"
+    endian = ">"
 
-class UnsignedByte(StructType):
+class UnsignedByte(pak.UInt8):
     """An unsigned 8-bit integer."""
 
-    _default = 0
-    fmt      = "B"
+    endian = ">"
 
-class Short(StructType):
+class Short(pak.Int16):
     """A signed 16-bit integer."""
 
-    _default = 0
-    fmt      = "h"
+    endian = ">"
 
-class UnsignedShort(StructType):
-    """An unsigned 8-bit integer."""
+class UnsignedShort(pak.UInt16):
+    """An unsigned 16-bit integer."""
 
-    _default = 0
-    fmt      = "H"
+    endian = ">"
 
-class Int(StructType):
+class Int(pak.Int32):
     """A signed 32-bit integer."""
 
-    _default = 0
-    fmt      = "i"
+    endian = ">"
 
-class UnsignedInt(StructType):
+class UnsignedInt(pak.UInt32):
     """An unsigned 32-bit integer."""
 
-    _default = 0
-    fmt      = "I"
+    endian = ">"
 
-class Long(StructType):
+class Long(pak.Int64):
     """A signed 64-bit integer."""
 
-    _default = 0
-    fmt      = "q"
+    endian = ">"
 
-class UnsignedLong(StructType):
+class UnsignedLong(pak.UInt64):
     """An unsigned 64-bit integer."""
 
-    _default = 0
-    fmt      = "Q"
+    endian = ">"
 
-class Float(StructType):
+class Float(pak.Float32):
     """A 32-bit floating point value."""
 
-    _default = 0.0
-    fmt      = "f"
+    endian = ">"
 
-class Double(StructType):
+class Double(pak.Float64):
     """A 64-bit floating point value."""
 
-    _default = 0.0
-    fmt      = "d"
+    endian = ">"
 
-class VarNum(Type):
-    """A signed, variable-length integer.
-
-    :meta no-undoc-members:
-
-    To read the value, a byte is read, where the
-    bottom 7 bits are a portion of the value, and
-    the top bit indicates whether to read another
-    byte and repeat the process.
-
-    If the bytes read would exceed the number of
-    bytes needed to get the necessary bits (as
-    specified with the :attr:`bits` attribute),
-    then a :exc:`ValueError` will be raised. This
-    is done to prevent a DOS attack that sends
-    bytes that always have the top bit set, leading
-    to an infinite amount of bytes being read.
-
-    Attributes
-    ----------
-    bits : :class:`int`
-        The maximum amount of bits before a
-        :exc:`ValueError` is raised.
-    """
-
-    _default = 0
-    bits     = None
+class Angle(pak.Type):
+    """An angle in radians."""
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
-        ret = 0
-
-        for i in range(1 + cls.bits // 8):
-            read = UnsignedByte.unpack(buf, ctx=ctx)
-            value = read & 0x7f
-
-            ret |= value << (7 * i)
-
-            if read & 0x80 == 0:
-                return util.to_signed(ret, bits=cls.bits)
-
-        raise ValueError(f"{cls.__name__} is too big")
-
-    @classmethod
-    def _pack(cls, value, *, ctx=None):
-        ret = b""
-
-        for i in range(1 + cls.bits // 8):
-            tmp = value & 0x7f
-
-            value = util.urshift(value, 7, bits=cls.bits)
-            if value != 0:
-                tmp |= 0x80
-
-            ret += UnsignedByte.pack(tmp, ctx=ctx)
-
-            if value == 0:
-                return ret
-
-        raise ValueError(f"{cls.__name__} is too big")
-
-class VarInt(VarNum):
-    """A signed, variable-length 32-bit integer."""
-
-    bits = 32
-
-class VarLong(VarNum):
-    """A signed, variable-length 64-bit integer."""
-
-    bits = 64
-
-class Angle(Type):
-    """Represents an angle.
-
-    The value is in radians.
-    """
-
-    _default = 0
-
-    @classmethod
-    def _unpack(cls, buf, *, ctx=None):
-        return math.tau * UnsignedByte.unpack(buf) / 256
+        return math.tau * (UnsignedByte.unpack(buf) / 256)
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
