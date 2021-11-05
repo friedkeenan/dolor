@@ -15,4 +15,4 @@ python:
 
     - method: pip
 
-    path: .
+      path: .
