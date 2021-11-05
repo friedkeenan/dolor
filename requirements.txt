@@ -1,1 +1,1 @@
-pak
+git+https://github.com/friedkeenan/pak.py
