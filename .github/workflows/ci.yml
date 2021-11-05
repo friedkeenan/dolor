@@ -52,7 +52,9 @@ jobs:
         run: pip install pytest
 
       - name: Install dolor
-        run: pip install git+https://github.com/friedkeenan/pak.py .
+        run: |
+          pip install git+https://github.com/friedkeenan/pak.py
+          pip install .
 
       - name: Run tests
         run: pytest
