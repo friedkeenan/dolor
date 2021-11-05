@@ -1,11 +1,10 @@
 import setuptools
-import dolor
 
 # TODO: README.md as long_description
 
 setuptools.setup(
     name            = "dolor",
-    version         = dolor.__version__,
+    version         = "0.1.0",
     author          = "friedkeenan",
     description     = "An asyncio Minecraft networking library",
     url             = "https://github.com/friedkeenan/dolor",

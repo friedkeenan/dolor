@@ -1,1 +1,3 @@
 git+https://github.com/friedkeenan/pak.py
+
+importlib_metadata ; python_version < 3.8

@@ -1,4 +1,5 @@
 import math
+import pytest
 
 from dolor import *
 
@@ -8,6 +9,52 @@ from ..util import assert_type_marshal
 # inherit from types from 'pak', since that would
 # amount to testing the library when that is not
 # our responsibility.
+
+def test_var_int():
+    assert_type_marshal(
+        types.VarInt,
+
+        (0,         b"\x00"),
+        (1,         b"\x01"),
+        (2**7 - 1,  b"\x7F"),
+        (2**7,      b"\x80\x01"),
+        (2**8 - 1,  b"\xFF\x01"),
+        (2**31 - 1, b"\xFF\xFF\xFF\xFF\x07"),
+        (-1,        b"\xFF\xFF\xFF\xFF\x0F"),
+        (-2**31,    b"\x80\x80\x80\x80\x08"),
+    )
+
+    with pytest.raises(types.VarNumBufferLengthError):
+        types.VarInt.unpack(b"\x80\x80\x80\x80\x80")
+
+    with pytest.raises(types.VarNumOutOfRangeError):
+        types.VarInt.pack(2**31)
+
+    with pytest.raises(types.VarNumOutOfRangeError):
+        types.VarInt.pack(-2**31 - 1)
+
+def test_var_long():
+    assert_type_marshal(
+        types.VarLong,
+
+        (0,         b"\x00"),
+        (1,         b"\x01"),
+        (2**7 - 1,  b"\x7F"),
+        (2**7,      b"\x80\x01"),
+        (2**8 - 1,  b"\xFF\x01"),
+        (2**63 - 1, b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x7F"),
+        (-1,        b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"),
+        (-2**63,    b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"),
+    )
+
+    with pytest.raises(types.VarNumBufferLengthError):
+        types.VarInt.unpack(b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80")
+
+    with pytest.raises(types.VarNumOutOfRangeError):
+        types.VarInt.pack(2**63)
+
+    with pytest.raises(types.VarNumOutOfRangeError):
+        types.VarInt.pack(-2**63 - 1)
 
 def test_angle():
     assert_type_marshal(
