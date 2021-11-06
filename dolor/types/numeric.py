@@ -188,7 +188,7 @@ class VarNum(pak.Type):
                 # Set the top bit.
                 to_write |= 0b10000000
 
-            data += UnsignedByte.pack(to_write)
+            data += UnsignedByte.pack(to_write, ctx=ctx)
 
             if value == 0:
                 return data
@@ -208,8 +208,8 @@ class Angle(pak.Type):
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
-        return math.tau * (UnsignedByte.unpack(buf) / 256)
+        return math.tau * (UnsignedByte.unpack(buf, ctx=ctx) / 256)
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
-        return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau))
+        return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau), ctx=ctx)

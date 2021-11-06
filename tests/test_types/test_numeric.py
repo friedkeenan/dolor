@@ -48,13 +48,13 @@ def test_var_long():
     )
 
     with pytest.raises(types.VarNumBufferLengthError):
-        types.VarInt.unpack(b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80")
+        types.VarLong.unpack(b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80")
 
     with pytest.raises(types.VarNumOutOfRangeError):
-        types.VarInt.pack(2**63)
+        types.VarLong.pack(2**63)
 
     with pytest.raises(types.VarNumOutOfRangeError):
-        types.VarInt.pack(-2**63 - 1)
+        types.VarLong.pack(-2**63 - 1)
 
 def test_angle():
     assert_type_marshal(
