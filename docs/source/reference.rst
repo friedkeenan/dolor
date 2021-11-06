@@ -10,3 +10,12 @@ Types
     :nosignatures:
 
     ~types.numeric
+    ~types.string
+
+Utilities
+#########
+.. autosummary::
+    :toctree: reference
+    :nosignatures:
+
+    ~util.misc

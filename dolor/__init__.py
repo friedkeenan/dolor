@@ -10,4 +10,5 @@ __version__ = importlib_metadata.version(__name__)
 # Remove import from our exported variables
 del importlib_metadata
 
+from . import util
 from . import types

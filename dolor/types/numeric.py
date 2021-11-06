@@ -206,6 +206,8 @@ class VarLong(VarNum):
 class Angle(pak.Type):
     """An angle whose value is in radians."""
 
+    _default = 0.0
+
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
         return math.tau * (UnsignedByte.unpack(buf, ctx=ctx) / 256)

@@ -6,9 +6,8 @@ from dolor import *
 from ..util import assert_type_marshal
 
 # We avoid testing basic numeric types that simply
-# inherit from types from 'pak', since that would
-# amount to testing the library when that is not
-# our responsibility.
+# inherit from pak types, since that would amount to
+# testing the library when that is not our responsibility.
 
 def test_var_int():
     assert_type_marshal(
@@ -75,3 +74,7 @@ def test_angle():
     # be from 0 to tau.
     assert types.Angle.pack(math.tau * 8 / 8) == b"\x00"
     assert types.Angle.pack(math.tau * 9 / 8) == b"\x20"
+
+    assert isinstance(types.Angle.default(), float)
+
+    assert types.Angle.default() == 0
