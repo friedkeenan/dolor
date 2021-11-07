@@ -12,3 +12,6 @@ del importlib_metadata
 
 from . import util
 from . import types
+
+from .versions import *
+from .packets import *

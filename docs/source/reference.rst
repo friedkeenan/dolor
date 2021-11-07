@@ -3,6 +3,15 @@ Reference
 
 .. currentmodule:: dolor
 
+Packets
+#######
+.. autosummary::
+    :toctree: reference
+    :nosignatures:
+    :recursive:
+
+    ~packets.packet
+
 Types
 #####
 .. autosummary::
@@ -11,6 +20,7 @@ Types
 
     ~types.numeric
     ~types.string
+    ~types.version_switched
 
 Utilities
 #########
@@ -18,4 +28,13 @@ Utilities
     :toctree: reference
     :nosignatures:
 
+    ~util.interfaces
     ~util.misc
+
+Other Modules
+#############
+.. autosummary::
+    :toctree: reference
+    :nosignatures:
+
+    ~versions

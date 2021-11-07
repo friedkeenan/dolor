@@ -140,7 +140,7 @@ class Identifier(pak.Type):
         """
 
         def __init__(self, id):
-            if isinstance(id, type(self)):
+            if isinstance(id, Identifier.Identifier):
                 self.namespace = id.namespace
                 self.name      = id.name
             else:
