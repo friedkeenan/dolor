@@ -44,11 +44,17 @@ class String(pak.Type):
         The maximum length of the string.
 
         If exceeded, a :exc:`StringLengthError` is raised.
+
+        By default ``32767``.
     prefix : typelike
         The type at the beginning of the raw data representing
         the length of the string in bytes.
+
+        By default :class:`types.VarInt <.types.numeric.VarInt>`.
     encoding : :class:`str`
-        The encoding to sue for the string.
+        The encoding to use for the string.
+
+        By default ``"utf-8"``.
     """
 
     _default = ""

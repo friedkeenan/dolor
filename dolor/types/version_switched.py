@@ -30,7 +30,7 @@ class VersionSwitchedType(pak.Type):
 
     @classmethod
     def underlying_type(cls, *, ctx=None):
-        """Gets the underlying value type for the :class:`pak.TypeContext`.
+        """Gets the underlying type for the :class:`pak.TypeContext`.
 
         Parameters
         ----------
@@ -40,7 +40,7 @@ class VersionSwitchedType(pak.Type):
         Returns
         -------
         subclass of :class:`pak.Type`
-            The underlying value type.
+            The underlying type.
         """
 
         return pak.Type(cls._switcher[ctx.version])

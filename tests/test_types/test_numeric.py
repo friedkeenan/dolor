@@ -32,6 +32,9 @@ def test_var_int():
     with pytest.raises(types.VarNumOutOfRangeError):
         types.VarInt.pack(-2**31 - 1)
 
+    with pytest.raises(types.VarNumOutOfRangeError):
+        types.VarInt.pack(None)
+
 def test_var_long():
     assert_type_marshal(
         types.VarLong,

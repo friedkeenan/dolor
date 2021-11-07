@@ -11,6 +11,7 @@ Packets
     :recursive:
 
     ~packets.packet
+    ~packets.serverbound
 
 Types
 #####

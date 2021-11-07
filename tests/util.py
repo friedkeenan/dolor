@@ -1,3 +1,7 @@
+import pak
+
+from dolor import *
+
 def assert_type_marshal(type_cls, *values_and_data, ctx=None):
     for value, data in values_and_data:
         data_from_value = type_cls.pack(value, ctx=ctx)
@@ -18,8 +22,12 @@ def assert_type_marshal_func(*args, **kwargs):
 
 def assert_packet_marshal(*values_and_data, ctx=None):
     for value, data in values_and_data:
+        # Remove the ID from the packet data.
+        data_file = pak.util.file_object(data)
+        Packet._id_type.unpack(data_file, ctx=ctx)
+
         data_from_value = value.pack(ctx=ctx)
-        value_from_data = value.unpack(data, ctx=ctx)
+        value_from_data = value.unpack(data_file, ctx=ctx)
 
         assert data_from_value == data,  f"data_from_value={data_from_value}; data={data}; value={value}"
         assert value_from_data == value, f"value_from_data={value_from_data}; value={value}; data={data}"

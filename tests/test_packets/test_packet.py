@@ -8,6 +8,8 @@ def test_packet():
 
         attr: types.String
 
+    # Don't use 'assert_packet_marshal' to
+    # make sure packing IDs work as expected.
     assert TestPacket(attr="test").pack() == b"\x01\x04test"
     assert TestPacket.unpack(b"\x04test") == TestPacket(attr="test")
 
@@ -16,8 +18,9 @@ def test_packet():
 
         attr: types.String
 
-    assert TestLargeID(attr="test").pack() == b"\x80\x01\x04test"
-    assert TestLargeID.unpack(b"\x04test") == TestLargeID(attr="test")
+    assert_packet_marshal(
+        (TestLargeID(attr="test"), b"\x80\x01\x04test"),
+    )
 
 def test_generic_packet():
     generic_cls = GenericPacketWithID(1)
@@ -25,5 +28,6 @@ def test_generic_packet():
     # Test caching
     assert GenericPacketWithID(1) is generic_cls
 
-    assert generic_cls(data=b"test").pack() == b"\x01test"
-    assert generic_cls.unpack(b"test") == generic_cls(data=b"test")
+    assert_packet_marshal(
+        (generic_cls(data=b"test"), b"\x01test"),
+    )

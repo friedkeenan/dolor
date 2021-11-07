@@ -110,7 +110,7 @@ class VarNumOutOfRangeError(Exception):
     """
 
     def __init__(self, var_num_cls, value):
-        super().__init__(f"Value {value} is out of the range of '{var_num_cls.__name__}'")
+        super().__init__(f"Value '{value}' is out of the range of '{var_num_cls.__name__}'")
 
 class VarNum(pak.Type):
     """A signed, variable-length integer.
@@ -172,7 +172,10 @@ class VarNum(pak.Type):
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
-        if value not in cls._value_range:
+        # If 'value' is not an 'int' then checking if it's contained will
+        # loop through the (very large) value range instead of just checking
+        # comparisons.
+        if not isinstance(value, int) or value not in cls._value_range:
             raise VarNumOutOfRangeError(cls, value)
 
         value = pak.util.to_unsigned(value, bits=cls.bits)

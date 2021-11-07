@@ -1,5 +1,6 @@
 """The foundation for :class:`Packets <.Packet>`."""
 
+import enum
 import pak
 
 from .. import types
@@ -12,6 +13,7 @@ __all__ = [
     "GenericPacketWithID",
     "ServerboundPacket",
     "ClientboundPacket",
+    "ConnectionState",
     "HandshakingPacket",
     "StatusPacket",
     "LoginPacket",
@@ -82,6 +84,18 @@ class ClientboundPacket(Packet):
     :class:`Packets <Packet>` which are sent to the client should inherit
     from :class:`ClientboundPacket` to be registered as such.
     """
+
+class ConnectionState(enum.Enum):
+    """The state of a :class:`~.Connection`.
+
+    The state of a :class:`~.Connection` determines which
+    packets it may send and receive.
+    """
+
+    Handshaking = 0
+    Status      = 1
+    Login       = 2
+    Play        = 3
 
 class HandshakingPacket(Packet):
     """A packet in the "Handshaking" state of the protocol.
