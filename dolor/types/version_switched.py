@@ -1,3 +1,5 @@
+"""Types that facilitate changes based on a :class:`~.Version`."""
+
 import pak
 
 from ..versions import VersionSwitcher
@@ -9,11 +11,9 @@ __all__ = [
 class VersionSwitchedType(pak.Type):
     """A type which changes based on a :class:`~.Version`.
 
-    See Also
-    --------
-    :class:`~.VersionSwitcher`
+    .. seealso::
 
-    The values of the :class:`~.VersionSwitcher` must be typelike.
+        :class:`~.VersionSwitcher`
 
     :class:`dict` is also registered as typelike, converting to
     a :class:`VersionSwitchedType` everywhere a typelike is possible.
@@ -22,12 +22,27 @@ class VersionSwitchedType(pak.Type):
     ----------
     switch : :class:`dict`
         Forwarded onto :class:`~.VersionSwitcher`.
+
+        The values must be typelike.
     """
 
     _switcher = None
 
     @classmethod
     def value_type(cls, *, ctx=None):
+        """Gets the underlying value type for the :class:`pak.TypeContext`.
+
+        Parameters
+        ----------
+        ctx : :class:`pal.TypeContext`
+            The context for the type.
+
+        Returns
+        -------
+        subclass of :class:`pak.Type`
+            The underlying value type.
+        """
+
         return pak.Type(cls._switcher[ctx.version])
 
     @classmethod
