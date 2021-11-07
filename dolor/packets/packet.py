@@ -1,4 +1,4 @@
-"""The foundation for class:`Packets <.Packet>`."""
+"""The foundation for :class:`Packets <.Packet>`."""
 
 import pak
 
