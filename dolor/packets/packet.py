@@ -38,6 +38,11 @@ class Packet(pak.Packet):
 class GenericPacket(Packet):
     """A generic Minecraft packet."""
 
+    # NOTE: This inherits from our 'Packet' class instead of
+    # 'pak.GenericPacket' so that if we add utilities to our
+    # 'Packet', then they also automatically get added to our
+    # 'GenericPacket'.
+
     data: pak.RawByte[None]
 
 @pak.util.cache

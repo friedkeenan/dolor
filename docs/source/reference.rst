@@ -30,6 +30,7 @@ Utilities
 
     ~util.interfaces
     ~util.misc
+    ~util.structured_dict
 
 Other Modules
 #############

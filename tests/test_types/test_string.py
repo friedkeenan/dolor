@@ -52,8 +52,38 @@ test_json = assert_type_marshal_func(
 
     ({}, b"\x02{}"),
 
-    ({"key": "value", "other key": "other value"}, b'\x29{"key":"value","other key":"other value"}')
+    ({"key": "value", "other key": "other value"}, b'\x29{"key":"value","other key":"other value"}'),
 )
+
+def test_structured_json():
+    class TestStructured(types.StructuredJSON):
+        test: int
+
+    value_type = TestStructured.value_type
+
+    assert issubclass(value_type, util.StructuredDict)
+
+    assert_type_marshal(
+        TestStructured,
+
+        (value_type(test=1), b'\x0A{"test":1}'),
+    )
+
+    class TestConversion(types.StructuredJSON):
+        test: value_type
+
+    conversion_type = TestConversion.value_type
+
+    assert_type_marshal(
+        TestConversion,
+
+        (conversion_type(test=value_type(test=1)), b'\x13{"test":{"test":1}}'),
+    )
+
+    class TestDefault(types.StructuredJSON):
+        test: int = 0
+
+    assert TestDefault.default() == TestDefault.value_type(test=0)
 
 def test_identifier():
     test_id = types.Identifier.Identifier("stone")

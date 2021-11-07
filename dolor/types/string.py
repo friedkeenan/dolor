@@ -10,6 +10,7 @@ __all__ = [
     "StringLengthError",
     "String",
     "JSON",
+    "StructuredJSON",
     "Identifier",
 ]
 
@@ -114,6 +115,78 @@ class JSON(pak.Type):
     def _pack(cls, value, *, ctx=None):
         # Specify separators to get as compact as possible.
         return String.pack(json.dumps(value, separators=(",", ":")), ctx=ctx)
+
+class StructuredJSON(pak.Type):
+    """Structured JSON data.
+
+    :meta no-undoc-members:
+
+    .. seealso::
+
+        :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
+
+    The annotations of subclasses should be made in the fashion of
+    :mod:`dataclasses`, and are applied to the :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
+    value type.
+
+    Attributes
+    ----------
+    value_type : subclass of :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
+        The type of the :class:`StructuredJSON`'s value.
+    """
+
+    value_type = None
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # TODO: In Python 3.10+ we can use 'inspect.getannotations'.
+        annotations = getattr(cls, "__annotations__", {})
+
+        # Make sure we propagate on the annotation fields.
+        unique_sentinel = object()
+        attrs           = {}
+        for key in annotations.keys():
+            attr = getattr(cls, key, unique_sentinel)
+
+            if attr is not unique_sentinel:
+                attrs[key] = attr
+
+        cls.value_type = type(cls.__name__, (util.StructuredDict,), dict(
+            __annotations__ = annotations,
+            **attrs
+        ))
+
+    def __set__(self, instance, value):
+        super().__set__(instance, cls.value_type(value))
+
+    @classmethod
+    def _default(cls, *, ctx=None):
+        return cls.value_type()
+
+    @classmethod
+    def _unpack(cls, buf, *, ctx=None):
+        value = JSON.unpack(buf, ctx=ctx)
+
+        for key in list(value.keys()):
+            value_for_key = value[key]
+            if isinstance(value_for_key, dict):
+                type_for_key = cls.value_type.__dataclass_fields__[key].type
+                value[key]   = type_for_key(value_for_key)
+
+        return cls.value_type(value)
+
+    @classmethod
+    def _pack(cls, value, *, ctx=None):
+        value = dict(value)
+
+        for key in list(value.keys()):
+            value_for_key = value[key]
+            if isinstance(value_for_key, util.StructuredDict):
+                value[key] = dict(value_for_key)
+
+        return JSON.pack(value, ctx=ctx)
 
 class Identifier(pak.Type):
     """An identifier for a resource location.

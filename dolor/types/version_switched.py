@@ -34,7 +34,7 @@ class VersionSwitchedType(pak.Type):
 
         Parameters
         ----------
-        ctx : :class:`pal.TypeContext`
+        ctx : :class:`pak.TypeContext`
             The context for the type.
 
         Returns
