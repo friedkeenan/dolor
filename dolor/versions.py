@@ -1,5 +1,6 @@
 """Minecraft version handling."""
 
+import collections
 import inspect
 import pak
 
@@ -12,19 +13,23 @@ __all__ = [
     "VersionSwitcherDynamicValue",
 ]
 
-class Version:
+class Version(collections.abc.MutableMapping):
     """A Minecraft version.
 
     :meta no-undoc-members:
 
     Parameters
     ----------
-    version : :class:`str` or :class:`int` or :class:`Version`
+    version : :class:`str` or :class:`int` or mapping or :class:`Version`
         If :class:`str`, then ``version`` is the name of the
         :class:`Version`.
 
         If :class:`int`, then ``version`` is the protocol
         number of the :class:`Version`.
+
+        If a mapping, then the ``"name"`` and ``"protocol"`` keys
+        are used to initialize the :class:`Version`. Whether the
+        :class:`Version` is supported is not checked.
 
         If :class:`Version`, then the :attr:`name` and :attr`protocol`
         attributes are copied to the resulting :class:`Version`.
@@ -41,9 +46,13 @@ class Version:
     >>> version = dolor.Version("1.12.2")
     >>> version
     Version('1.12.2', 340)
-    >>> dolor.Version(340) == version
+    >>> version == dolor.Version(340)
     True
-    >>> dolor.Version(version) == version
+    >>> version == dolor.Version({"name": "1.12.2", "protocol": 340})
+    True
+    >>> dict(version)
+    {'name': '1.12.2', 'protocol': 340}
+    >>> version == dolor.Version(version)
     True
 
     Attributes
@@ -124,6 +133,9 @@ class Version:
 
             self.name     = self.name_from_protocol(version)
             self.protocol = version
+        elif isinstance(version, collections.abc.Mapping):
+            self.name     = version["name"]
+            self.protocol = version["protocol"]
         else:
             protocol = self.supported_versions.get(version)
             if protocol is None:
@@ -131,6 +143,21 @@ class Version:
 
             self.name     = version
             self.protocol = protocol
+
+    def __iter__(self):
+        return iter(("name", "protocol"))
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def __setitem__(self, item, value):
+        setattr(self, item, value)
+
+    def __delitem__(self, item):
+        delattr(self, item)
 
     def __repr__(self):
         return f"{type(self).__name__}({repr(self.name)}, {repr(self.protocol)})"

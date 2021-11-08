@@ -1,5 +1,7 @@
 """Types relating to strings."""
 
+import collections
+import dataclasses
 import json
 import pak
 
@@ -50,7 +52,7 @@ class String(pak.Type):
         The type at the beginning of the raw data representing
         the length of the string in bytes.
 
-        By default :class:`types.VarInt <.types.numeric.VarInt>`.
+        By default :class:`types.VarInt <.VarInt>`.
     encoding : :class:`str`
         The encoding to use for the string.
 
@@ -129,19 +131,32 @@ class StructuredJSON(pak.Type):
 
     .. seealso::
 
-        :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
+        :class:`util.StructuredDict <.StructuredDict>`
 
     The annotations of subclasses should be made in the fashion of
-    :mod:`dataclasses`, and are applied to the :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
+    :mod:`dataclasses`, and are applied to the :class:`util.StructuredDict <.StructuredDict>`
     value type.
 
-    Attributes
-    ----------
-    value_type : subclass of :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`
-        The type of the :class:`StructuredJSON`'s value.
-    """
+    If the type of an annotation is a mapping, then any :class:`dict` values
+    in the JSON data will be passed to said type's constructor, allowing you
+    to use :class:`util.StructuredDicts <.util.structured_dict.StructuredDict>`
+    as types of annotations.
 
-    value_type = None
+    The value type of the resulting :class:`StructuredJSON` subclass can be accessed
+    through either the :meth:`value_type` method or as an attribute of the same name
+    as the subclass.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> class Example(dolor.types.StructuredJSON):
+    ...     key: int
+    ...
+    >>> Example.value_type() is Example.Example
+    True
+    >>> Example.Example(key=1)
+    Example(key=1)
+    """
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -159,29 +174,46 @@ class StructuredJSON(pak.Type):
             if attr is not unique_sentinel:
                 attrs[key] = attr
 
-        cls.value_type = type(cls.__name__, (util.StructuredDict,), dict(
+        # Set value type as an attribute with the same name.
+        setattr(cls, cls.__name__, cls.make_type(
+            cls.__name__,
+            (util.StructuredDict,),
+
             __annotations__ = annotations,
-            **attrs
+            __qualname__    = f"{cls.__qualname__}.{cls.__name__}",
+
+            **attrs,
         ))
 
     def __set__(self, instance, value):
-        super().__set__(instance, cls.value_type(value))
+        if not isinstance(value, self.value_type()):
+            value = self.value_type(value)
+
+        super().__set__(instance, value)
+
+    @classmethod
+    def value_type(cls):
+        """A generic way to get the value type of a :class:`StructuredJSON`."""
+
+        return getattr(cls, cls.__name__)
 
     @classmethod
     def _default(cls, *, ctx=None):
-        return cls.value_type()
+        return cls.value_type()()
 
     @classmethod
     def _unpack(cls, buf, *, ctx=None):
         value = JSON.unpack(buf, ctx=ctx)
 
+        value_type = cls.value_type()
+
         for key in list(value.keys()):
             value_for_key = value[key]
             if isinstance(value_for_key, dict):
-                type_for_key = cls.value_type.__dataclass_fields__[key].type
+                type_for_key = value_type.__dataclass_fields__[key].type
                 value[key]   = type_for_key(value_for_key)
 
-        return cls.value_type(value)
+        return value_type(value)
 
     @classmethod
     def _pack(cls, value, *, ctx=None):
@@ -189,7 +221,7 @@ class StructuredJSON(pak.Type):
 
         for key in list(value.keys()):
             value_for_key = value[key]
-            if isinstance(value_for_key, util.StructuredDict):
+            if isinstance(value_for_key, collections.abc.Mapping):
                 value[key] = dict(value_for_key)
 
         return JSON.pack(value, ctx=ctx)

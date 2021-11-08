@@ -13,8 +13,8 @@ __all__ = [
 class HandshakePacket(ServerboundPacket, HandshakingPacket):
     """Sent to begin a :class:`~.Connection`.
 
-    The server should transition to the state specified
-    by :attr:`next_state`.
+    The :class:`~.Server` should transition to the
+    state specified by :attr:`next_state`.
     """
 
     id = 0x00

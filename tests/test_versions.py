@@ -2,6 +2,15 @@ import pak
 
 from dolor import *
 
+def test_version_equality():
+    canonical = Version("1.12.2")
+    heretical = Version({"name": "test", "protocol": 340})
+
+    assert heretical.name     == "test"
+    assert heretical.protocol == 340
+
+    assert canonical == heretical
+
 # TODO: Test more versions in 'VersionSwitcher' tests when we support more versions.
 
 def test_switcher_str():

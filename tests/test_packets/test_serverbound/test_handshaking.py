@@ -2,7 +2,7 @@ from dolor import *
 
 from ...util import assert_packet_marshal_func
 
-test_handshaking = assert_packet_marshal_func(
+test_handshake = assert_packet_marshal_func(
     (
         serverbound.HandshakePacket(
             protocol       = 340,

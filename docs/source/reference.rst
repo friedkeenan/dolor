@@ -12,6 +12,7 @@ Packets
 
     ~packets.packet
     ~packets.serverbound
+    ~packets.clientbound
 
 Types
 #####
