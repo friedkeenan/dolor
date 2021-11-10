@@ -137,10 +137,15 @@ class StructuredJSON(pak.Type):
     :mod:`dataclasses`, and are applied to the :class:`util.StructuredDict <.StructuredDict>`
     value type.
 
-    If the type of an annotation is a mapping, then any :class:`dict` values
-    in the JSON data will be passed to said type's constructor, allowing you
-    to use :class:`util.StructuredDicts <.util.structured_dict.StructuredDict>`
-    as types of annotations.
+    When unpacking, any :class:`dict` values in the JSON data will be passed to the
+    constructor of the corresponding value of the annotation, allowing you to use
+    :class:`util.StructuredDicts <.util.structured_dict.StructuredDict>` as annotation
+    values.
+
+    When packing, for any values of the object to pack which have an :meth:`as_dict`
+    method, said method will be used to pack the value into a :class:`dict`. If the
+    value does not have that method, then if it is a mapping, it will be passed to
+    :class:`dict` to pack it into a :class:`dict`.
 
     The value type of the resulting :class:`StructuredJSON` subclass can be accessed
     through either the :meth:`value_type` method or as an attribute of the same name
@@ -221,7 +226,11 @@ class StructuredJSON(pak.Type):
 
         for key in list(value.keys()):
             value_for_key = value[key]
-            if isinstance(value_for_key, collections.abc.Mapping):
+
+            as_dict_method = getattr(value_for_key, "as_dict", None)
+            if as_dict_method is not None:
+                value[key] = as_dict_method()
+            elif isinstance(value_for_key, collections.abc.Mapping):
                 value[key] = dict(value_for_key)
 
         return JSON.pack(value, ctx=ctx)

@@ -16,13 +16,13 @@ test_response = assert_packet_marshal_func(
                     sample = [],
                 ),
 
-                description = {}, # TODO: Chat
+                description = types.Chat.Chat(""),
 
                 favicon = "data:image/png;base64,VGVzdA==",
             )
         ),
 
-        b'\x00\x94\x01{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":1,"sample":[]},"description":{},"favicon":"data:image/png;base64,VGVzdA=="}'
+        b'\x00\x9D\x01{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":1,"sample":[]},"description":{"text":""},"favicon":"data:image/png;base64,VGVzdA=="}'
     ),
 
     (
@@ -36,13 +36,13 @@ test_response = assert_packet_marshal_func(
                     sample = [],
                 ),
 
-                description = {}, # TODO: Chat
+                description = types.Chat.Chat(""),
 
                 # Missing favicon
             )
         ),
 
-        b'\x00\x69{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":1,"sample":[]},"description":{}}'
+        b'\x00\x72{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":1,"sample":[]},"description":{"text":""}}'
     ),
 )
 

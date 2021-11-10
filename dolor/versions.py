@@ -22,10 +22,12 @@ class Version(collections.abc.MutableMapping):
     ----------
     version : :class:`str` or :class:`int` or mapping or :class:`Version`
         If :class:`str`, then ``version`` is the name of the
+        :class:`Version`. The name must correspond to a supported
         :class:`Version`.
 
         If :class:`int`, then ``version`` is the protocol
-        number of the :class:`Version`.
+        number of the :class:`Version`. Whether the :class:`Version`
+        is supported is not checked.
 
         If a mapping, then the ``"name"`` and ``"protocol"`` keys
         are used to initialize the :class:`Version`. Whether the
@@ -66,6 +68,8 @@ class Version(collections.abc.MutableMapping):
         names as keys and corresponding protocol numbers as values.
     """
 
+    # TODO: Do we want to use '__slots__'?
+
     PRERELEASE = pak.util.bit(30)
 
     # NOTE: This *must* be chronologically ordered.
@@ -103,26 +107,25 @@ class Version(collections.abc.MutableMapping):
 
         Returns
         -------
-        :class:`str`
-            The corresponding name of the :class:`Version`.
+        :class:`str` or ``None``
+            If :class:`str`, then the corresponding name of the :class:`Version`.
 
-        Raises
-        ------
-        :exc:`ValueError`
-            If no corresponding name can be found.
+            If ``None``, then no corresponding name could be found.
 
         Examples
         --------
         >>> import dolor
         >>> dolor.Version.name_from_protocol(340)
         '1.12.2'
+        >>> dolor.Version.name_from_protocol(-1) is None
+        True
         """
 
         for name, proto in reversed(cls.supported_versions.items()):
             if proto == protocol:
                 return name
 
-        raise ValueError(f"No version name corresponds to protocol {protocol}")
+        return None
 
     def __init__(self, version):
         if isinstance(version, Version):

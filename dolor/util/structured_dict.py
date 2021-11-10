@@ -70,13 +70,11 @@ class StructuredDict(collections.abc.MutableMapping):
         old_init = cls.__init__
 
         # TODO: Match signature, along with annotations, appropriately
-        def new_init(self, _items=None, **kwargs):
-            if _items is None:
-                items = {}
-            else:
-                items = dict(_items)
-
-            items.update(kwargs)
+        #
+        # NOTE: '_items' having a mutable default is okay since we
+        # always take a copy of it.
+        def new_init(self, _items={}, **kwargs):
+            items = dict(_items, **kwargs)
 
             old_init(self, **items)
 

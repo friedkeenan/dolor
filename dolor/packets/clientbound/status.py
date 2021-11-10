@@ -21,7 +21,7 @@ class ResponsePacket(ClientboundPacket, StatusPacket):
         """
 
         class PlayersInfo(util.StructuredDict):
-            """Info about the :class:`Server`'s players."""
+            """Info about the :class:`~.Server`'s players."""
 
             max:    int
             online: int
@@ -29,7 +29,7 @@ class ResponsePacket(ClientboundPacket, StatusPacket):
 
         version:     Version
         players:     PlayersInfo
-        description: dict # TODO: Chat
+        description: types.Chat.Chat
         favicon:     str = util.StructuredDict.UNSPECIFIED
 
     id = 0x00

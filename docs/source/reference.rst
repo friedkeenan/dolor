@@ -20,6 +20,7 @@ Types
     :toctree: reference
     :nosignatures:
 
+    ~types.chat
     ~types.numeric
     ~types.string
     ~types.version_switched
