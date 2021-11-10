@@ -356,7 +356,9 @@ class Chat(pak.Type):
         strikethrough = BooleanField()
         obfuscated    = BooleanField()
 
-        @Field(default=None).parser
+        color = Field(default=None)
+
+        @color.parser
         def color(self, raw_item):
             """The color of the text."""
 
@@ -377,7 +379,9 @@ class Chat(pak.Type):
         click_event = Field(default=None, field_name="clickEvent", doc="An event to happen when the text is clicked.")
         hover_event = Field(default=None, field_name="hoverEvent", doc="An event to happen when the text is hovered over.")
 
-        @Field(initial_value=[]).parser
+        extra = Field(initial_value=[])
+
+        @extra.parser
         def extra(self, raw_item):
             """Extra child components."""
 
@@ -391,15 +395,21 @@ class Chat(pak.Type):
         def extra(self):
             return [child.as_dict() for child in self.extra]
 
-        @Field(initial_value=None, doc="The plain text of the object.").pack_checker
+        text = Field(initial_value=None, doc="The plain text of the object.")
+
+        @text.pack_checker
         def text(self):
             return self.is_string_component
 
-        @Field(initial_value=None, doc="The translation key for the text.").pack_checker
+        translate = Field(initial_value=None, doc="The translation key for the text.")
+
+        @translate.pack_checker
         def translate(self):
             return self.is_translation_component
 
-        @Field(initial_value=[]).parser
+        translate_with = Field(initial_value=[])
+
+        @translate_with.parser
         def translate_with(self, raw_item):
             """The components to translate with."""
 
