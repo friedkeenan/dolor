@@ -121,7 +121,10 @@ class Version(collections.abc.Mapping):
         True
         """
 
-        for name, proto in reversed(cls.supported_versions.items()):
+        # TODO: Remove 'list' call when Python 3.7 is dropped.
+        #
+        # In 3.7, 'dict_items' is not reversible.
+        for name, proto in reversed(list(cls.supported_versions.items())):
             if proto == protocol:
                 return name
 
