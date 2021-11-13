@@ -299,7 +299,9 @@ class Connection:
 
         This method creates a :class:`~.Packet` instance using the :meth:`create_packet`
         method. If you wish to write a pre-existing :class:`~.Packet` instance,
-        then the :meth:`write_packet_instance` method should be used instead.
+        then the :meth:`write_packet_instance` method should be used instea.
+
+        This method ultimately calls :meth:`write_packet_instance`.
 
         Parameters
         ----------

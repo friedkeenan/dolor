@@ -16,3 +16,7 @@ from . import types
 from .versions import *
 from .packets import *
 from .connection import *
+
+from . import clients
+
+from .clients import Client

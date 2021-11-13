@@ -3,6 +3,14 @@ Reference
 
 .. currentmodule:: dolor
 
+Clients
+#######
+.. autosummary::
+    :toctree: reference
+    :nosignatures:
+
+    ~clients.client
+
 Packets
 #######
 .. autosummary::

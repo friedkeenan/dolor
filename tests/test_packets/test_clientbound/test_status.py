@@ -32,8 +32,9 @@ test_response = assert_packet_marshal_func(
 
                 players = Response.PlayersInfo(
                     max    = 20,
-                    online = 1,
-                    sample = [],
+                    online = 0,
+
+                    # Missing sample
                 ),
 
                 description = types.Chat.Chat(""),
@@ -42,7 +43,7 @@ test_response = assert_packet_marshal_func(
             )
         ),
 
-        b'\x00\x72{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":1,"sample":[]},"description":{"text":""}}'
+        b'\x00\x66{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":0},"description":{"text":""}}'
     ),
 )
 

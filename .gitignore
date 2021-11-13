@@ -3,7 +3,3 @@ build/
 .pytest_cache/
 dist/
 *.egg-info
-
-config.py
-en_us.json
-favicon.png

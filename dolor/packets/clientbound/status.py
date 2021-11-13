@@ -25,12 +25,15 @@ class ResponsePacket(ClientboundPacket, StatusPacket):
 
             max:    int
             online: int
-            sample: list # TODO: Figure out list of 'StructuredDict's
+            sample: list = util.StructuredDict.UNSPECIFIED # TODO: Figure out list of 'StructuredDict's
 
         version:     Version
         players:     PlayersInfo
         description: types.Chat.Chat
         favicon:     str = util.StructuredDict.UNSPECIFIED
+
+        # Seemingly non-standard information regarding the server's mods.
+        modinfo: dict = util.StructuredDict.UNSPECIFIED
 
     id = 0x00
 
