@@ -79,7 +79,7 @@ class Client(Connection):
 
         Returns
         -------
-        :class:`.clientbound.ResponsePacket.Response.Response`
+        :class:`clientbound.ResponsePacket.Response.Response <.ResponsePacket.Response.Response>`
             The response from the :class:`~.Server`.
         :class:`int`
             The ping to the :class:`~.Server`, in milliseconds.

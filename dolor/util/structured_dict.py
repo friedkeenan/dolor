@@ -3,7 +3,7 @@
 import collections
 from dataclasses import dataclass
 
-from .misc import default
+from .misc import default, UniqueSentinel
 
 __all__ = [
     "StructuredDict",
@@ -53,7 +53,7 @@ class StructuredDict(collections.abc.MutableMapping):
     {'key': 2, 'other_key': 'example'}
     """
 
-    UNSPECIFIED = object()
+    UNSPECIFIED = UniqueSentinel("UNSPECIFIED")
 
     @classmethod
     def __init_subclass__(cls, **kwargs):

@@ -78,7 +78,7 @@ class Chat(pak.Type):
                 neither are specified.
             """
 
-            _UNSPECIFIED = object()
+            _UNSPECIFIED = util.UniqueSentinel("UNSPECIFIED")
 
             def __init__(
                 self,
@@ -327,7 +327,7 @@ class Chat(pak.Type):
                 Forwarded onto the parent constructor.
             """
 
-            _BOOL_UNSPECIFIED = object()
+            _BOOL_UNSPECIFIED = util.UniqueSentinel("UNSPECIFIED")
 
             def __init__(self, *, default=False, parser=_BOOL_UNSPECIFIED, packer=_BOOL_UNSPECIFIED, **kwargs):
                 def bool_parser(instance, raw_item):
