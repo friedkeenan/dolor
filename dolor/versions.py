@@ -13,7 +13,7 @@ __all__ = [
     "VersionSwitcherDynamicValue",
 ]
 
-class Version(collections.abc.MutableMapping):
+class Version(collections.abc.Mapping):
     """A Minecraft version.
 
     :meta no-undoc-members:
@@ -68,7 +68,7 @@ class Version(collections.abc.MutableMapping):
         names as keys and corresponding protocol numbers as values.
     """
 
-    # TODO: Do we want to use '__slots__'?
+    __slots__ = ("_mutable_flag", "name", "protocol")
 
     PRERELEASE = pak.util.bit(30)
 
@@ -128,6 +128,9 @@ class Version(collections.abc.MutableMapping):
         return None
 
     def __init__(self, version):
+        # Allow mutating attributes only during construction.
+        self._mutable_flag = True
+
         if isinstance(version, Version):
             self.name     = version.name
             self.protocol = version.protocol
@@ -147,6 +150,14 @@ class Version(collections.abc.MutableMapping):
             self.name     = version
             self.protocol = protocol
 
+        self._mutable_flag = False
+
+    def __setattr__(self, attr, value):
+        if attr == "_mutable_flag" or self._mutable_flag:
+            super().__setattr__(attr, value)
+        else:
+            raise AttributeError(f"Cannot set the '{attr}' attribute; Versions are immutable")
+
     def __iter__(self):
         return iter(("name", "protocol"))
 
@@ -155,12 +166,6 @@ class Version(collections.abc.MutableMapping):
 
     def __getitem__(self, item):
         return getattr(self, item)
-
-    def __setitem__(self, item, value):
-        setattr(self, item, value)
-
-    def __delitem__(self, item):
-        delattr(self, item)
 
     def __repr__(self):
         return f"{type(self).__name__}({repr(self.name)}, {repr(self.protocol)})"

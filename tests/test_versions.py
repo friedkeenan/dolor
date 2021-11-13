@@ -1,6 +1,13 @@
+import pytest
 import pak
 
 from dolor import *
+
+def test_version_mutability():
+    version = Version("1.12.2")
+
+    with pytest.raises(AttributeError, match="protocol"):
+        version.protocol = 0
 
 def test_version_equality():
     canonical = Version("1.12.2")

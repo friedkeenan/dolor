@@ -31,6 +31,7 @@ Utilities
     :toctree: reference
     :nosignatures:
 
+    ~util.aio
     ~util.interfaces
     ~util.misc
     ~util.structured_dict
@@ -41,4 +42,5 @@ Other Modules
     :toctree: reference
     :nosignatures:
 
+    ~connection
     ~versions

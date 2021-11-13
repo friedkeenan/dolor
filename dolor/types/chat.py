@@ -407,7 +407,7 @@ class Chat(pak.Type):
         def translate(self):
             return self.is_translation_component
 
-        translate_with = Field(initial_value=[])
+        translate_with = Field(initial_value=[], field_name="with")
 
         @translate_with.parser
         def translate_with(self, raw_item):

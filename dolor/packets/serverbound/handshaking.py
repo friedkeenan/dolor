@@ -20,6 +20,6 @@ class HandshakePacket(ServerboundPacket, HandshakingPacket):
     id = 0x00
 
     protocol:       types.VarInt
-    server_address: types.String
+    server_address: types.String(255)
     server_port:    types.UnsignedShort
     next_state:     pak.Enum(types.VarInt, ConnectionState)

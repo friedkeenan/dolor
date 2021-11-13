@@ -75,6 +75,18 @@ def test_chat_packing():
         ]
     }
 
+    chat = types.Chat.Chat(translate="test.format")
+    chat.translate_with.append(types.Chat.Chat("child", parent=chat))
+
+    assert chat.as_dict() == {
+        "translate": "test.format",
+        "with": [
+            {
+                "text": "child",
+            },
+        ]
+    }
+
 def test_chat_flattening():
     chat = types.Chat.Chat("test")
 

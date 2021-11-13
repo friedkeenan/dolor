@@ -32,6 +32,15 @@ class PacketContext(pak.PacketContext):
     def __init__(self, version):
         self.version = Version(version)
 
+    def __eq__(self, other):
+        if not isinstance(other, PacketContext):
+            return NotImplemented
+
+        return self.version == other.version
+
+    def __hash__(self):
+        return hash(self.version)
+
 class Packet(pak.Packet):
     """A Minecraft packet."""
 
@@ -85,18 +94,6 @@ class ClientboundPacket(Packet):
     from :class:`ClientboundPacket` to be registered as such.
     """
 
-class ConnectionState(enum.Enum):
-    """The state of a :class:`~.Connection`.
-
-    The state of a :class:`~.Connection` determines which
-    packets it may send and receive.
-    """
-
-    Handshaking = 0
-    Status      = 1
-    Login       = 2
-    Play        = 3
-
 class HandshakingPacket(Packet):
     """A packet in the "Handshaking" state of the protocol.
 
@@ -124,3 +121,26 @@ class PlayPacket(Packet):
     :class:`Packets <Packet>` which are in the "Play" state should
     inherit from :class:`PlayPacket` to be registered as such.
     """
+
+class ConnectionState(enum.Enum):
+    """The state of a :class:`~.Connection`.
+
+    The state of a :class:`~.Connection` determines which
+    packets it may send and receive.
+    """
+
+    Handshaking = 0
+    Status      = 1
+    Login       = 2
+    Play        = 3
+
+    @property
+    def packet_base_class(self):
+        """The corresponding base class for :class:`Packets <Packet>` in the :class:`ConnectionState`."""
+
+        return {
+            self.Handshaking: HandshakingPacket,
+            self.Status:      StatusPacket,
+            self.Login:       LoginPacket,
+            self.Play:        PlayPacket,
+        }[self]

@@ -2,6 +2,13 @@ from dolor import *
 
 from ..util import assert_packet_marshal
 
+def test_packet_context():
+    ctx = PacketContext("1.12.2")
+
+    assert ctx == PacketContext(340)
+
+    assert hash(ctx) == hash(PacketContext("1.12.2"))
+
 def test_packet():
     class TestPacket(Packet):
         id = 1
