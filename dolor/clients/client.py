@@ -129,6 +129,10 @@ class Client(Connection):
 
         self.close()
 
+        # If packet reading prematurely stops, raise an error.
+        if response is None or ping is None:
+            raise ValueError("Could not get the status of the server")
+
         return response, ping
 
     async def login(self):

@@ -6,7 +6,7 @@ from ..util import ByteStream
 from dolor import *
 
 class _ClientTest(Client):
-    received_data = b""
+    received_data = None
 
     version = Version.latest()
 

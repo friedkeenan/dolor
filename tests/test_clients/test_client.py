@@ -1,9 +1,11 @@
+import pytest
+
 from dolor import *
 
 from .util import client_test
 
 @client_test
-class StatusClientTest(Client):
+class StatustTest(Client):
     received_data = (
         # Pong packet (can't get the payload correct here since it requires the current time).
         b"\x09" + b"\x01" + b"\x00" * 8 +
@@ -29,3 +31,11 @@ class StatusClientTest(Client):
 
             # Cannot test ping packet since it requires the current time.
         )
+
+@client_test
+class FailedStatusTest(Client):
+    received_data = b""
+
+    async def on_start(self):
+        with pytest.raises(ValueError, match="status"):
+            await self.status()
