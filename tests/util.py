@@ -1,3 +1,4 @@
+import asyncio
 import pak
 
 from dolor import *
@@ -41,3 +42,42 @@ def assert_packet_marshal_func(*args, **kwargs):
     # function, potentially using assert_packet_marshal.
 
     return lambda: assert_packet_marshal(*args, **kwargs)
+
+class ByteStream:
+    def __init__(self, data=b""):
+        if not isinstance(data, bytearray):
+            data = bytearray(data)
+
+        self.data    = data
+        self.closing = False
+
+    async def read(self, n=-1):
+        if n < 0:
+            n = len(self.data)
+
+        extracted_data = self.data[:n]
+        self.data      = self.data[n:]
+
+        return extracted_data
+
+    async def readexactly(self, n):
+        if n > len(self.data):
+            raise asyncio.IncompleteReadError(expected=n, partial=self.data[:n])
+
+        return await self.read(n)
+
+    def write(self, new_data):
+        self.data.extend(new_data)
+
+    async def drain(self):
+        pass
+
+    def close(self):
+        self.closing = True
+
+    def is_closing(self):
+        return self.closing
+
+    async def wait_closed(self):
+        while not self.closing:
+            await asyncio.sleep(1)

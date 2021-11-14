@@ -60,19 +60,28 @@ class Client(Connection):
 
         await self.login()
 
-    async def _start(self):
+    async def start(self):
+        """Starts the :class:`Client`.
+
+        This should only be used if you're already in a coroutine.
+        Otherwise, you should use the :meth:`run` method.
+
+        This should not be overridden. Instead override the :meth:`startup`
+        and/or :meth:`on_start` methods.
+        """
+
         await self.startup()
 
         async with self:
             await self.on_start()
 
     def run(self):
-        """Runs the :class:`Client`."""
+        """Runs the :class:`Client`.
 
-        try:
-            asyncio.run(self._start())
-        except KeyboardInterrupt:
-            self.close()
+        Calls :meth:`start` with :func:`asyncio.run`.
+        """
+
+        asyncio.run(self.start())
 
     async def status(self):
         """Gets the status of the :class:`~.Server` the :class:`Client` was directed at.
