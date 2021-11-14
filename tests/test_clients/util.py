@@ -7,7 +7,6 @@ from dolor import *
 
 class _ClientTest(Client):
     received_data = b""
-    sent_data     = bytearray()
 
     version = Version.latest()
 
@@ -20,9 +19,13 @@ class _ClientTest(Client):
     def __init__(self):
         super().__init__("test", version=self.version)
 
+    @property
+    def sent_data(self):
+        return self.writer.data
+
     async def startup(self):
         self.reader = ByteStream(self.received_data)
-        self.writer = ByteStream(self.sent_data)
+        self.writer = ByteStream()
 
 def client_test(client_cls=None, *args, **kwargs):
     if client_cls is None:

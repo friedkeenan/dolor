@@ -9,7 +9,7 @@ class StatusClientTest(Client):
         b"\x09" + b"\x01" + b"\x00" * 8 +
 
         # Response packet.
-        b"\x68" + b"\x00" + b'\x66{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":0},"description":{"text":""}}'
+        b"\x78" + b"\x00" + b'\x76{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":0},"description":{"text":"test description"}}'
     )
 
     async def on_start(self):
@@ -18,7 +18,7 @@ class StatusClientTest(Client):
         assert response.version               == "1.12.2"
         assert response.players.max           == 20
         assert response.players.online        == 0
-        assert response.description.flatten() == ""
+        assert response.description.flatten() == "test description"
 
         assert self.sent_data.startswith(
             # Handshake packet.
