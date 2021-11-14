@@ -37,5 +37,5 @@ class FailedStatusTest(Client):
     received_data = b""
 
     async def on_start(self):
-        with pytest.raises(ValueError, match="status"):
+        with pytest.raises(RuntimeError, match="status"):
             await self.status()

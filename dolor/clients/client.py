@@ -92,6 +92,11 @@ class Client(Connection):
             The response from the :class:`~.Server`.
         :class:`int`
             The ping to the :class:`~.Server`, in milliseconds.
+
+        Raises
+        ------
+        :exc:`RuntimeError`
+            If the :class:`Client` cannot get the status of the :class:`~.Server`.
         """
 
         if self.state != ConnectionState.Handshaking:
@@ -131,7 +136,7 @@ class Client(Connection):
 
         # If packet reading prematurely stops, raise an error.
         if response is None or ping is None:
-            raise ValueError("Could not get the status of the server")
+            raise RuntimeError("Could not get the status of the server")
 
         return response, ping
 
