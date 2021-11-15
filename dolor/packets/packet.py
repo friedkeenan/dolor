@@ -56,6 +56,7 @@ class GenericPacket(Packet):
 
     data: pak.RawByte[None]
 
+# TODO: When Python 3.7 support is dropped, make 'id' a positional-only parameter.
 @pak.util.cache
 def GenericPacketWithID(id):
     """Generates a subclass of :class:`GenericPacket` with the specified ID.
@@ -76,7 +77,7 @@ def GenericPacketWithID(id):
         The generated :class:`GenericPacket`.
     """
 
-    return type(f"GenericPacket(0x{id:X})", (GenericPacket,), dict(
+    return type(f"GenericPacketWithID(0x{id:X})", (GenericPacket,), dict(
         id = id,
     ))
 

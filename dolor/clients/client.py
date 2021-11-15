@@ -123,7 +123,7 @@ class Client(Connection):
         response = None
         ping     = None
 
-        async for packet in self.continuously_read_incoming_packets():
+        async for packet in self.continuously_read_packets():
             if isinstance(packet, clientbound.ResponsePacket):
                 response = packet.response
             elif isinstance(packet, clientbound.PongPacket):

@@ -6,7 +6,15 @@ import zlib
 import pak
 
 from .versions import Version
-from .packets import *
+from .packets import (
+    PacketContext,
+    ServerboundPacket,
+    ClientboundPacket,
+    ConnectionState,
+    GenericPacketWithID,
+    serverbound,
+    clientbound,
+)
 
 from . import types
 from . import util
@@ -210,27 +218,22 @@ class Connection:
         packet_cls = self._packet_for_id(id, self._available_packets, ctx = self.ctx)
 
         if packet_cls is None:
-            packet_cls = GenericPacketWithId(id)
+            packet_cls = GenericPacketWithID(id)
 
         return packet_cls.unpack(data, ctx=self.ctx)
 
     def _dispatch_to_specific_reads(self, packet):
-        to_remove = []
-
-        for packet_cls, packet_holder in self._specific_reads.items():
+        # Make a copy of the items so we can modify the dictionary within the same loop.
+        for packet_cls, packet_holder in list(self._specific_reads.items()):
             if isinstance(packet, packet_cls):
                 packet_holder.set(packet)
-                to_remove.append(packet_cls)
+                self._specific_reads.pop(packet_cls)
 
                 # Don't break here since there could be other
                 # reads that requested a more specific subclass
                 # of 'packet_cls'.
 
-        # Cannot change dictionary size while iterating over it.
-        for packet_cls in to_remove:
-            self._specific_reads.pop(packet_cls)
-
-    async def continuously_read_incoming_packets(self):
+    async def continuously_read_packets(self):
         """Continuously reads and yields all incoming :class:`Packets <.Packet>`.
 
         This must be iterated over for :meth:`read_packet` to function.

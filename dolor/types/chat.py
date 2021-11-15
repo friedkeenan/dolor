@@ -33,6 +33,8 @@ class Chat(pak.Type):
             Key/value pairs are passed to :func:`setattr`.
         """
 
+        # TODO: Handle old style formatting.
+
         class Field:
             """A field descriptor for a :class:`Chat.Chat`.
 

@@ -39,3 +39,28 @@ class FailedStatusTest(Client):
     async def on_start(self):
         with pytest.raises(RuntimeError, match="status"):
             await self.status()
+
+@client_test
+class GenericPacketTest(Client):
+    received_data = (
+        # There is no packet with ID 0x69 in the handshaking state.
+        (b"\x04" + b"\x69" + b"\xAA\xBB\xCC") * 2
+    )
+
+    async def on_start(self):
+        packet = None
+
+        async for received_packet in self.continuously_read_packets():
+            if packet is None:
+                packet = received_packet
+
+                assert packet.id(ctx=self.ctx) == 0x69
+                assert packet.data == b"\xAA\xBB\xCC"
+            else:
+                assert received_packet.id(ctx=self.ctx) == 0x69
+
+                assert received_packet ==     packet
+                assert received_packet is not packet
+
+                # Make sure they have the exact same type (due to caching).
+                assert type(received_packet) is type(packet)
