@@ -91,7 +91,7 @@ class ByteStream:
 
 class CyclingByteStream:
     def __init__(self, data):
-        self.data = itertools.cycle(bytearray(data))
+        self.data = iter(itertools.cycle(bytearray(data)))
 
     async def read(self, n=-1):
         if n < 0:

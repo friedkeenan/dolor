@@ -248,6 +248,18 @@ class Connection:
 
         This will continue to yield :class:`Packets <.Packet>` until the
         :class:`Connection` is closed.
+
+        Yields
+        ------
+        :class:`~.Packet`
+            An incoming :class:`~.Packet`.
+
+        Examples
+        --------
+        >>> connection = ...
+        >>> async for packet in connection.continuously_read_packets(): # doctest: +SKIP
+        ...     ...
+        ...
         """
 
         while not self.is_closing():
