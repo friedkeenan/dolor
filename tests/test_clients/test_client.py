@@ -1,8 +1,11 @@
+import asyncio
 import pytest
 
 from dolor import *
 
 from .util import client_test
+
+from ..util import CyclingByteStream
 
 @client_test
 class StatustTest(Client):
@@ -64,3 +67,39 @@ class GenericPacketTest(Client):
 
                 # Make sure they have the exact same type (due to caching).
                 assert type(received_packet) is type(packet)
+
+@client_test
+class SpecificReadTest(Client):
+    received_data = (
+        b"\x04" + b"\x69" + b"\xAA\xBB\xCC"
+    )
+
+    reader_cls = CyclingByteStream
+
+    async def on_start(self):
+        async def continuous_read_task():
+            async for _ in self.continuously_read_packets():
+                pass
+
+        continuous_task = asyncio.create_task(continuous_read_task())
+
+        packet = await self.read_packet(GenericPacketWithID(0x69))
+        assert packet.data == b"\xAA\xBB\xCC"
+
+        continuous_task.cancel()
+
+@client_test
+class ClosedSpecificReadTest(Client):
+    received_data = b""
+
+    async def on_start(self):
+        async def specific_read_task():
+            return await self.read_packet(GenericPacketWithID(0x69))
+
+        specific_task = asyncio.create_task(specific_read_task())
+
+        async for _ in self.continuously_read_packets():
+            # This code should never execute since we have no incoming data.
+            assert False
+
+        assert await specific_task is None

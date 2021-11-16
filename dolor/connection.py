@@ -109,7 +109,7 @@ class Connection:
             Whether the :class:`Connection` is closed or being closed.
         """
 
-        return self.writer is not None and self.writer.is_closing()
+        return self.writer is None or self.writer.is_closing()
 
     def close(self):
         """Closes the :class:`Connection`.
@@ -197,6 +197,10 @@ class Connection:
                     try:
                         length = types.VarInt.unpack(length_data, ctx=self.ctx)
                     except types.VarNumBufferLengthError as e:
+                        # Make sure we don't read the length forever.
+                        raise e
+                    except asyncio.CancelledError as e:
+                        # Make sure we can be cancelled.
                         raise e
                     except Exception:
                         # If we fail to read a VarInt, read the next byte and try again.
@@ -215,7 +219,7 @@ class Connection:
         data = await self._decompressed_file_object(data)
 
         id         = types.VarInt.unpack(data)
-        packet_cls = self._packet_for_id(id, self._available_packets, ctx = self.ctx)
+        packet_cls = self._packet_for_id(id, self._available_packets, ctx=self.ctx)
 
         if packet_cls is None:
             packet_cls = GenericPacketWithID(id)
@@ -233,6 +237,10 @@ class Connection:
                 # reads that requested a more specific subclass
                 # of 'packet_cls'.
 
+    def _cancel_specific_reads(self):
+        for packet_holder in self._specific_reads.values():
+            packet_holder.set(None)
+
     async def continuously_read_packets(self):
         """Continuously reads and yields all incoming :class:`Packets <.Packet>`.
 
@@ -246,6 +254,7 @@ class Connection:
             packet = await self._read_general_packet()
 
             if packet is None:
+                self._cancel_specific_reads()
                 return
 
             self._dispatch_to_specific_reads(packet)
@@ -275,15 +284,7 @@ class Connection:
             packet_holder                        = util.AsyncValueHolder()
             self._specific_reads[packet_to_read] = packet_holder
 
-        # TODO: Is there a cleaner way to wait for a packet?
-        # Maybe with futures?
-        while not self.is_closing():
-            try:
-                return await asyncio.wait_for(packet_holder.get(), 1)
-            except asyncio.TimeoutError:
-                pass
-
-        return None
+        return await packet_holder.get()
 
     def _compressed_data(self, data):
         if self.compression_enabled:

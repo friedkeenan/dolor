@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import pak
 
 from dolor import *
@@ -48,10 +49,13 @@ class ByteStream:
         if not isinstance(data, bytearray):
             data = bytearray(data)
 
-        self.data    = data
-        self.closing = False
+        self.data         = data
+        self.close_future = asyncio.get_running_loop().create_future()
 
     async def read(self, n=-1):
+        # Yield.
+        await asyncio.sleep(0)
+
         if n < 0:
             n = len(self.data)
 
@@ -61,6 +65,9 @@ class ByteStream:
         return extracted_data
 
     async def readexactly(self, n):
+        # Yield.
+        await asyncio.sleep(0)
+
         if n > len(self.data):
             raise asyncio.IncompleteReadError(expected=n, partial=self.data[:n])
 
@@ -70,14 +77,36 @@ class ByteStream:
         self.data.extend(new_data)
 
     async def drain(self):
-        pass
+        # Yield.
+        await asyncio.sleep(0)
 
     def close(self):
-        self.closing = True
+        try:
+            self.close_future.set_result(None)
+        except asyncio.InvalidStateError:
+            pass
 
     def is_closing(self):
-        return self.closing
+        return self.close_future.done()
 
     async def wait_closed(self):
-        while not self.closing:
-            await asyncio.sleep(1)
+        await self.close_future
+
+class CyclingByteStream:
+    def __init__(self, data):
+        self.data = itertools.cycle(data)
+
+    async def read(self, n=-1):
+        if n < 0:
+            raise ValueError("Cannot read all of infinite byte stream")
+
+        # Yield.
+        await asyncio.sleep(0)
+
+        # Take 'n' bytes from the infinitely cycling data.
+        extracted_data = b"".join(x.to_bytes(1, "little") for _, x in zip(range(n), self.data))
+
+        return extracted_data
+
+    async def readexactly(self, n):
+        return await self.read(n)

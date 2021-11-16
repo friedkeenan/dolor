@@ -10,6 +10,9 @@ class _ClientTest(Client):
 
     version = Version.latest()
 
+    reader_cls = ByteStream
+    writer_cls = ByteStream
+
     @classmethod
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -24,8 +27,8 @@ class _ClientTest(Client):
         return self.writer.data
 
     async def startup(self):
-        self.reader = ByteStream(self.received_data)
-        self.writer = ByteStream()
+        self.reader = self.reader_cls(self.received_data)
+        self.writer = self.writer_cls()
 
 def client_test(client_cls=None, *args, **kwargs):
     if client_cls is None:

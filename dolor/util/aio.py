@@ -3,10 +3,14 @@
 import asyncio
 
 class AsyncValueHolder:
-    """An asynchronous value holder."""
+    """An asynchronous value holder.
+
+    This is essentially a wrapper around :class:`asyncio.Future` to give it
+    a nicer API.
+    """
 
     def __init__(self):
-        self._event = asyncio.Event()
+        self._future = asyncio.get_running_loop().create_future()
 
     async def get(self):
         """Gets the held value, waiting until a value is held.
@@ -19,9 +23,9 @@ class AsyncValueHolder:
             The held value.
         """
 
-        await self._event.wait()
+        await self._future
 
-        return self._value
+        return self._future.result()
 
     def set(self, value):
         """Sets the held value.
@@ -34,6 +38,4 @@ class AsyncValueHolder:
             The value to hold.
         """
 
-        self._value = value
-
-        self._event.set()
+        self._future.set_result(value)
