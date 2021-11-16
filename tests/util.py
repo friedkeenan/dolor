@@ -49,8 +49,8 @@ class ByteStream:
         if not isinstance(data, bytearray):
             data = bytearray(data)
 
-        self.data         = data
-        self.close_future = asyncio.get_running_loop().create_future()
+        self.data        = data
+        self.close_event = asyncio.Event()
 
     async def read(self, n=-1):
         # Yield.
@@ -81,20 +81,17 @@ class ByteStream:
         await asyncio.sleep(0)
 
     def close(self):
-        try:
-            self.close_future.set_result(None)
-        except asyncio.InvalidStateError:
-            pass
+        self.close_event.set()
 
     def is_closing(self):
-        return self.close_future.done()
+        return self.close_event.is_set()
 
     async def wait_closed(self):
-        await self.close_future
+        await self.close_event.wait()
 
 class CyclingByteStream:
     def __init__(self, data):
-        self.data = itertools.cycle(data)
+        self.data = itertools.cycle(bytearray(data))
 
     async def read(self, n=-1):
         if n < 0:
