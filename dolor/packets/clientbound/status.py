@@ -1,6 +1,6 @@
-""":class:`Packets <.Packet>` in the "Status" state."""
+""":class:`Packets <.Packet>` in the :attr:`.ConnectionState.Status` state."""
 
-from ..packet import *
+from ..packet import ClientboundPacket, StatusPacket
 
 from ...versions import Version
 from ... import types

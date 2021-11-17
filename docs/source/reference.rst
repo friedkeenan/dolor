@@ -32,6 +32,7 @@ Types
     ~types.numeric
     ~types.string
     ~types.version_switched
+    ~types.uuid
 
 Utilities
 #########

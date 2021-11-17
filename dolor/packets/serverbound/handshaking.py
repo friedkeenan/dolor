@@ -1,8 +1,8 @@
-""":class:`Packets <.Packet>` in the "Handshaking" state."""
+""":class:`Packets <.Packet>` in the :attr:`.ConnectionState.Handshaking` state."""
 
 import pak
 
-from ..packet import *
+from ..packet import ServerboundPacket, HandshakingPacket, ConnectionState
 
 from ... import types
 

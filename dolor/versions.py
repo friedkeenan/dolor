@@ -206,6 +206,11 @@ class Version(collections.abc.Mapping):
     # TODO: Examples for greater than and less than
     # when we support more than one version.
 
+    @classmethod
+    @pak.util.cache
+    def _index_for_protocol(cls, protocol):
+        return cls._supported_protocols.index(protocol)
+
     def __gt__(self, other):
         """Checks whether a version is greater than another.
 
@@ -220,10 +225,9 @@ class Version(collections.abc.Mapping):
             Whether the :class:`Version` is greater than ``other``.
         """
 
-        other     = Version(other)
-        protocols = self._supported_protocols
+        other = Version(other)
 
-        return protocols.index(self.protocol) > protocols.index(other.protocol)
+        return self._index_for_protocol(self.protocol) > self._index_for_protocol(other.protocol)
 
     def __ge__(self, other):
         return self == other or self > other
@@ -242,10 +246,9 @@ class Version(collections.abc.Mapping):
             Whether the :class:`Version` is less than ``other``.
         """
 
-        other     = Version(other)
-        protocols = self._supported_protocols
+        other = Version(other)
 
-        return protocols.index(self.protocol) < protocols.index(other.protocol)
+        return self._index_for_protocol(self.protocol) > self._index_for_protocol(other.protocol)
 
     def __le__(self, other):
         return self == other or self < other
