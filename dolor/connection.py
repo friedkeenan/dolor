@@ -48,8 +48,6 @@ class Connection:
         The stream for outgoing data.
     """
 
-    # TODO: Figure out a feasible way to test this.
-
     def __init__(self, bound, *, version):
         self._bound_packet_parent = {
             serverbound: ServerboundPacket,

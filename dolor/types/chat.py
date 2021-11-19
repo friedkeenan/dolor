@@ -455,7 +455,7 @@ class Chat(pak.Type):
                 cls._translation_strings = json.load(translations)
 
             for key, value in cls._translation_strings.items():
-                # TODO: Do we want tricter formatting types, e.g. putting 's' and 'd' in the format strings?
+                # TODO: Do we want stricter formatting types, e.g. putting 's' and 'd' in the format strings?
 
                 value = re.sub(cls._indexed_format_pattern, lambda x: f"{{{int(x.groups()[0]) - 1}}}", value)
                 value = re.sub(cls._positional_format_pattern, "{}", value)
