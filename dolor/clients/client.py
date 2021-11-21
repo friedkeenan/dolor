@@ -2,8 +2,10 @@
 
 import asyncio
 import time
+from aioconsole import aprint
 
 from ..connection import Connection
+from ..packet_handler import packet_listener, PacketHandler
 from ..packets import ConnectionState, clientbound, serverbound
 
 from .. import types
@@ -12,7 +14,7 @@ __all__ = [
     "Client",
 ]
 
-class Client(Connection):
+class Client(Connection, PacketHandler):
     """A Minecraft client.
 
     Parameters
@@ -23,6 +25,11 @@ class Client(Connection):
         The port of the :class:`~.Server` to connect to.
     version : versionlike
         The :class:`~.Version` for the :class:`Client`.
+    name : :class:`str` or ``None``
+        The name of the player.
+
+        If ``None``, then the player's name is gotten from
+        authentication if possible.
     translations : pathlike or string file object or :class:`dict` or ``None``
         If not ``None``, then passed to :meth:`types.Chat.Chat.load_translations <.Chat.Chat.load_translations>`.
     """
@@ -33,20 +40,68 @@ class Client(Connection):
         port = 25565,
         *,
         version,
+        name         = None,
         translations = None,
     ):
-        super().__init__(clientbound, version=version)
+        # Cannot use 'super' here because of multiple inheritance with non-matching constructors.
+        Connection.__init__(self, clientbound, version=version)
+        PacketHandler.__init__(self)
 
         self.address = address
         self.port    = port
 
+        self.name = name
+
         if translations is not None:
             types.Chat.Chat.load_translations(translations)
+
+        self._listen_sequentially = True
+
+    def register_packet_listener(self, listener, *packet_checkers, outgoing=False):
+        """Overrides :meth:`.PacketHandler.register_packet_listener`.
+
+        This adds the ``outgoing`` keyword argument to
+        check against for :class:`~.Packet` listeners.
+
+        Parameters
+        ----------
+        listener : coroutine function
+            The :class:`~.Packet` listener.
+        *packet_checkers
+            See :meth:`.PacketHandler.register_packet_listener`.
+        outgoing : :class:`bool`
+            Whether ``listener`` listens to outgoing :class:`Packets <.Packet>`,
+            i.e. those that are sent to the :class:`~.Server`.
+        """
+
+        super().register_packet_listener(listener, *packet_checkers, outgoing=outgoing)
+
+    async def _listen_to_packet(self, packet, **check_kwargs):
+        async with self.listener_task_context(listen_sequentially=self._listen_sequentially):
+            for listener in self.listeners_for_packet(self, packet, **check_kwargs):
+                self.create_listener_task(listener(packet))
+
+    async def _listen_to_incoming_packets(self):
+        try:
+            async for packet in self.continuously_read_packets():
+                await self._listen_to_packet(packet, outgoing=False)
+        finally:
+            await self.end_listener_tasks()
+
+    async def write_packet_instance(self, packet):
+        """Overrides :meth:`.Connection.write_packet_instance`.
+
+        This allows listening to outgoing :class:`Packets <.Packet>`.
+        """
+
+        await self._listen_to_packet(packet, outgoing=True)
+
+        return await super().write_packet_instance(packet)
 
     async def startup(self):
         """Called when the :class:`Client` is started.
 
-        By default initializes the :attr:`reader <.Connection.reader>` and
+        Opens a connection, setting the :attr:`reader <.Connection.reader>` and
         :attr:`writer <.Connection.writer>` attributes.
         """
 
@@ -95,6 +150,8 @@ class Client(Connection):
 
         Raises
         ------
+        :exc:`ValueError`
+            If the :class:`Client` is not in the :attr:`.ConnectionState.Handshaking` state.
         :exc:`RuntimeError`
             If the :class:`Client` cannot get the status of the :class:`~.Server`.
         """
@@ -141,4 +198,72 @@ class Client(Connection):
         return response, ping
 
     async def login(self):
+        """Logs into the :class:`~.Server` and begins listening to incoming :class:`Packets <.Packet>`.
+
+        If the :class:`Client` has not been given authentication data, then
+        it may only connect to "offline" :class:`Servers <.Server>` and the
+        ``name`` parameter must be passed on construction.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If the :class:`Client` is not in the :attr:`.ConnectionState.Handshaking` state.
+        """
+
+        if self.state != ConnectionState.Handshaking:
+            raise ValueError(f"Invalid connection state for login: {self.state}")
+
+        if self.name is None:
+            # TODO: Authentication.
+            raise NotImplementedError
+
+        # We do not want to read packets before handling a
+        # 'SetCompressionPacket' or 'EncryptionRequestPacket',
+        # as that would end up with reading the packets incorrectly.
+        self._listen_sequentially = True
+
+        await self.write_packet(
+            serverbound.HandshakePacket,
+
+            protocol       = self.version.protocol,
+            server_address = self.address,
+            server_port    = self.port,
+            next_state     = ConnectionState.Login,
+        )
+
+        self.state = ConnectionState.Login
+
+        await self.write_packet(
+            serverbound.LoginStartPacket,
+
+            name = self.name,
+        )
+
+        await self._listen_to_incoming_packets()
+
+    # Default packet listeners.
+
+    @packet_listener(clientbound.DisconnectPacket)
+    async def _on_disconnect(self, packet):
+        # TODO: Use aiologger?
+        await aprint("Disconnected:", packet.reason.flatten())
+
+        self.close()
+        await self.wait_closed()
+
+    @packet_listener(clientbound.EncryptionRequestPacket)
+    async def _on_encryption_request(self, packet):
+        # TODO: Encryption.
         raise NotImplementedError
+
+    @packet_listener(clientbound.SetCompressionPacket)
+    async def _on_set_compression(self, packet):
+        self.compression_threshold = packet.threshold
+
+    @packet_listener(clientbound.LoginSuccessPacket)
+    async def _on_login_success(self, packet):
+        self.state = ConnectionState.Play
+
+        # Packets in the play state should be fine to
+        # handle completely asynchronously.
+        self._listen_sequentially = False

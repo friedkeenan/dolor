@@ -55,6 +55,7 @@ class PacketHandler:
         self._packet_listeners = {}
         self._listener_tasks   = []
 
+        # Register the packet listeners decorated with 'packet_listener'.
         for _, attr in inspect.getmembers(self, lambda x: hasattr(x, "_packet_listener_data")):
             checkers, check_kwargs = attr._packet_listener_data
 
@@ -83,7 +84,7 @@ class PacketHandler:
         return lambda conn, packet: (first(conn, packet) or second(conn, packet))
 
     def register_packet_listener(self, listener, *packet_checkers, **check_kwargs):
-        """Regisiters a :class:`~.Packet` listener.
+        """Registers a :class:`~.Packet` listener.
 
         See Also
         --------

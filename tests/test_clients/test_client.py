@@ -8,46 +8,10 @@ from .util import client_test
 from ..util import CyclingByteStream
 
 @client_test
-class StatustTest(Client):
-    received_data = (
-        # Pong packet (can't get the payload correct here since it requires the current time).
-        b"\x09" + b"\x01" + b"\x00" * 8 +
-
-        # Response packet.
-        b"\x78" + b"\x00" + b'\x76{"version":{"name":"1.12.2","protocol":340},"players":{"max":20,"online":0},"description":{"text":"test description"}}'
-    )
-
-    async def on_start(self):
-        response, _ = await self.status()
-
-        assert response.version               == "1.12.2"
-        assert response.players.max           == 20
-        assert response.players.online        == 0
-        assert response.description.flatten() == "test description"
-
-        assert self.sent_data.startswith(
-            # Handshake packet.
-            b"\x0B" + b"\x00" + b"\xD4\x02" + b"\x04test" + b"\x63\xDD" + b"\x01" +
-
-            # Request packet.
-            b"\x01" + b"\x00"
-
-            # Cannot test ping packet since it requires the current time.
-        )
-
-@client_test
-class FailedStatusTest(Client):
-    received_data = b""
-
-    async def on_start(self):
-        with pytest.raises(RuntimeError, match="status"):
-            await self.status()
-
-@client_test
 class GenericPacketTest(Client):
     received_data = (
         # There is no packet with ID 0x69 in the handshaking state.
-        (b"\x04" + b"\x69" + b"\xAA\xBB\xCC") * 2
+        (b"\x05" + b"\x69" + b"test") * 2
     )
 
     async def on_start(self):
@@ -58,7 +22,7 @@ class GenericPacketTest(Client):
                 packet = received_packet
 
                 assert packet.id(ctx=self.ctx) == 0x69
-                assert packet.data == b"\xAA\xBB\xCC"
+                assert packet.data == b"test"
             else:
                 assert received_packet.id(ctx=self.ctx) == 0x69
 
@@ -71,7 +35,7 @@ class GenericPacketTest(Client):
 @client_test
 class SpecificReadTest(Client):
     received_data = (
-        b"\x04" + b"\x69" + b"\xAA\xBB\xCC"
+        b"\x05" + b"\x69" + b"test"
     )
 
     reader_cls = CyclingByteStream
@@ -84,7 +48,7 @@ class SpecificReadTest(Client):
         continuous_task = asyncio.create_task(continuous_read_task())
 
         packet = await self.read_packet(GenericPacketWithID(0x69))
-        assert packet.data == b"\xAA\xBB\xCC"
+        assert packet.data == b"test"
 
         continuous_task.cancel()
 
@@ -103,3 +67,153 @@ class ClosedSpecificReadTest(Client):
             assert False
 
         assert await specific_task is None
+
+@client_test
+class WritePacketTest(Client):
+    received_data = b""
+
+    async def on_start(self):
+        assert await self.write_packet(GenericPacketWithID(0x69), data=b"test") == (
+            b"\x05" + b"\x69" + b"test"
+        )
+
+        assert self.sent_data == (
+            b"\x05" + b"\x69" + b"test"
+        )
+
+        assert self.listener_called
+
+    @packet_listener(0x69, outgoing=True)
+    async def outgoing_listener(self, packet):
+        assert packet.data == b"test"
+
+        self.listener_called = True
+
+@client_test
+class IncomingPacketListenTest(Client):
+    received_data = (
+        b"\x05" + b"\x69" + b"test"
+    )
+
+    async def on_start(self):
+        await self._listen_to_incoming_packets()
+
+        assert self.listener_called
+
+    @packet_listener(0x69)
+    async def incoming_listener(self, packet):
+        assert packet.data == b"test"
+
+        self.listener_called = True
+
+@client_test(version="1.12.2")
+class StatustTest(Client):
+    def received_packets(self):
+        return [
+            self.create_packet(
+                clientbound.PongPacket,
+
+                # Can't get the payload correct here since it requires the current time.
+                payload = 0,
+            ),
+
+            self.create_packet(
+                clientbound.ResponsePacket,
+
+                response = clientbound.ResponsePacket.Response.Response(
+                    version = Version("1.12.2"),
+
+                    players = clientbound.ResponsePacket.Response.PlayersInfo(
+                        max    = 20,
+                        online = 0,
+                    ),
+
+                    description = types.Chat.Chat("test description"),
+                )
+            ),
+        ]
+
+    async def on_start(self):
+        response, _ = await self.status()
+
+        assert response.version               == "1.12.2"
+        assert response.players.max           == 20
+        assert response.players.online        == 0
+        assert response.description.flatten() == "test description"
+
+        assert self.sent_packets[:2] == [
+            self.create_packet(
+                serverbound.HandshakePacket,
+
+                protocol       = 340,
+                server_address = "test",
+                server_port    = 25565,
+                next_state     = ConnectionState.Status,
+            ),
+
+            self.create_packet(serverbound.RequestPacket),
+
+            # Cannot test ping packet since it requires the current time.
+        ]
+
+@client_test
+class FailedStatusTest(Client):
+    received_data = b""
+
+    async def on_start(self):
+        with pytest.raises(RuntimeError, match="status"):
+            await self.status()
+
+@client_test(version="1.12.2", name="username")
+class OfflineLoginTest(Client):
+    # Test against raw data to ensure compression works fine.
+
+    received_data = (
+        # Set compress packet with threshold 256.
+        b"\x03" + b"\x03" + b"\x80\x02" +
+
+        # Compressed login success packet.
+        b"\x30" + b"\x00" + b"\x02" + b"\x2400000000-0000-0000-0000-000000000000" + b"\x08username" +
+
+        # Compressed large generic packet.
+        b"\x0E" + b"\x82\x02" + b"\x78\x9C\xCB\xFC\x3F\xD2\x01\x00\x71\xe2\x00\x78"
+    )
+
+    async def on_start(self):
+        await self.login()
+
+        assert self.listener_called
+
+        # Test that packet compression works.
+        assert self.sent_data == (
+            # Handshake packet.
+            b"\x0B" + b"\x00" + b"\xD4\x02" + b"\x04test" + b"\x63\xDD" + b"\x02" +
+
+            # Login start packet.
+            b"\x0A" + b"\x00" + b"\x08username" +
+
+            # Compressed small generic packet.
+            b"\x07" + b"\x00" + b"\x69" + b"small" +
+
+            # Compressed large generic packet.
+            b"\x0E" + b"\x82\x02" + b"\x78\x9C\xCB\xFC\x3F\xD2\x01\x00\x71\xe2\x00\x78"
+        )
+
+    @packet_listener(0x69)
+    async def listener(self, packet):
+        assert packet == GenericPacketWithID(0x69)(data=b"\xFF" * (256 + 1))
+
+        await self.write_packet(
+            GenericPacketWithID(0x69),
+
+            data = b"small",
+        )
+
+        await self.write_packet(
+            GenericPacketWithID(0x69),
+
+            # Compression threshold is 256.
+            data = b"\xFF" * (256 + 1)
+        )
+
+        self.listener_called = True

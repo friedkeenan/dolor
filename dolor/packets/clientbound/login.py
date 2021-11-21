@@ -2,6 +2,8 @@
 
 import pak
 
+from .common import DisconnectPacket
+
 from ..packet import ClientboundPacket, LoginPacket
 
 from ... import types
@@ -13,12 +15,14 @@ __all__ = [
     "SetCompressionPacket",
 ]
 
-class DisconnectLoginPacket(ClientboundPacket, LoginPacket):
-    """Alerts the :class:`~.Client` that it's been disconnected."""
+class DisconnectLoginPacket(DisconnectPacket, ClientboundPacket, LoginPacket):
+    """Alerts the :class:`~.Client` that it's been disconnected.
+
+    Only available in the :attr:`.ConnectionState.Login` state. You should
+    likely use :class:`clientbound.DisconnectPacket <.DisconnectPacket>` instead.
+    """
 
     id = 0x00
-
-    reason: types.Chat
 
 class EncryptionRequestPacket(ClientboundPacket, LoginPacket):
     """Sent by the :class:`~.Server` to enable encryption over the :class:`~.Connection`.

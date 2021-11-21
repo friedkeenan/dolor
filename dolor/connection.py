@@ -298,13 +298,14 @@ class Connection:
 
     def _compressed_data(self, data):
         if self.compression_enabled:
-            data_len = 0
+            written_data_len = 0
+            real_data_len    = len(data)
 
-            if len(data) > self.compression_threshold:
-                data_len = len(data)
-                data     = zlib.compress(data)
+            if real_data_len > self.compression_threshold:
+                written_data_len = real_data_len
+                data             = zlib.compress(data)
 
-            data = types.VarInt.pack(data_len, ctx=self.ctx) + data
+            data = types.VarInt.pack(written_data_len, ctx=self.ctx) + data
 
         return data
 
@@ -326,8 +327,8 @@ class Connection:
 
         Returns
         -------
-        :class:`~.Packet`
-            The written :class:`~.Packet`.
+        :class:`bytes`
+            The written, raw data.
         """
 
         return await self.write_packet_instance(self.create_packet(packet_cls, **kwargs))
@@ -348,8 +349,8 @@ class Connection:
 
         Returns
         -------
-        :class:`~.Packet`
-            The written :class:`~.Packet`, i.e. ``packet``.
+        :class:`bytes`
+            The written, raw data.
         """
 
         data = packet.pack(ctx=self.ctx)
@@ -359,4 +360,4 @@ class Connection:
         self.writer.write(data)
         await self.writer.drain()
 
-        return packet
+        return data
