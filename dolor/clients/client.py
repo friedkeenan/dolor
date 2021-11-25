@@ -30,6 +30,9 @@ class Client(Connection, PacketHandler):
 
         If ``None``, then the player's name is gotten from
         authentication if possible.
+
+        Upon a successful login, this attribute is updated
+        to the value of :attr:`clientbound.LoginSuccessPacket.username <.LoginSuccessPacket.username>`.
     translations : pathlike or string file object or :class:`dict` or ``None``
         If not ``None``, then passed to :meth:`types.Chat.Chat.load_translations <.Chat.Chat.load_translations>`.
     """
@@ -262,8 +265,19 @@ class Client(Connection, PacketHandler):
 
     @packet_listener(clientbound.LoginSuccessPacket)
     async def _on_login_success(self, packet):
+        # Update our name to what the server tells us.
+        self.name = packet.username
+
         self.state = ConnectionState.Play
 
         # Packets in the play state should be fine to
         # handle completely asynchronously.
         self._listen_sequentially = False
+
+    @packet_listener(clientbound.KeepAlivePacket)
+    async def _on_keep_alive(self, packet):
+        await self.write_packet(
+            serverbound.KeepAlivePacket,
+
+            keep_alive_id = packet.keep_alive_id,
+        )

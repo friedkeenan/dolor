@@ -172,8 +172,8 @@ class OfflineLoginTest(Client):
         # Set compress packet with threshold 256.
         b"\x03" + b"\x03" + b"\x80\x02" +
 
-        # Compressed login success packet.
-        b"\x30" + b"\x00" + b"\x02" + b"\x2400000000-0000-0000-0000-000000000000" + b"\x08username" +
+        # Compressed login success packet with default UUID and username "diffname".
+        b"\x30" + b"\x00" + b"\x02" + b"\x2400000000-0000-0000-0000-000000000000" + b"\x08diffname" +
 
         # Compressed large generic packet.
         b"\x0E" + b"\x82\x02" + b"\x78\x9C\xCB\xFC\x3F\xD2\x01\x00\x71\xe2\x00\x78"
@@ -183,6 +183,9 @@ class OfflineLoginTest(Client):
         await self.login()
 
         assert self.listener_called
+
+        # Test that we updated our name.
+        assert self.name == "diffname"
 
         # Test that packet compression works.
         assert self.sent_data == (
@@ -217,3 +220,47 @@ class OfflineLoginTest(Client):
         )
 
         self.listener_called = True
+
+@client_test(version="1.12.2", name="username")
+class KeepAliveTest(Client):
+    def received_packets(self):
+        return [
+            self.create_packet(
+                clientbound.LoginSuccessPacket,
+
+                # Default UUID.
+                username = "username",
+            ),
+
+            self.create_packet(
+                clientbound.KeepAlivePacket,
+
+                keep_alive_id = 0x69,
+            ),
+        ]
+
+    async def on_start(self):
+        await self.login()
+
+        assert self.sent_packets == [
+            self.create_packet(
+                serverbound.HandshakePacket,
+
+                protocol       = 340,
+                server_address = "test",
+                server_port    = 25565,
+                next_state     = ConnectionState.Login,
+            ),
+
+            self.create_packet(
+                serverbound.LoginStartPacket,
+
+                name = "username",
+            ),
+
+            self.create_packet(
+                clientbound.KeepAlivePacket,
+
+                keep_alive_id = 0x69,
+            ),
+        ]

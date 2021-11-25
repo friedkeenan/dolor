@@ -62,7 +62,6 @@ class Connection:
         self.reader = None
         self.writer = None
 
-        self._read_lock      = asyncio.Lock()
         self._specific_reads = {}
 
     @property
@@ -182,32 +181,36 @@ class Connection:
         return data
 
     async def _read_general_packet(self):
-        data = b""
+        # We don't need to make sure reading is atomic since this method
+        # is only called by 'continuously_read_packets' which does not
+        # read several packets at once.
+        length_data = b""
+
+        while True:
+            try:
+                length_data += await self.reader.readexactly(1)
+            except asyncio.IncompleteReadError:
+                self.close()
+                await self.wait_closed()
+
+                return None
+
+            try:
+                length = types.VarInt.unpack(length_data, ctx=self.ctx)
+            except types.VarNumBufferLengthError as e:
+                # Make sure we don't read the length forever.
+                raise e
+            except asyncio.CancelledError as e:
+                # Make sure we can be cancelled.
+                raise e
+            except Exception:
+                # If we fail to read a VarInt, read the next byte and try again.
+                continue
+
+            break
 
         try:
-            # Make sure reading packets is atomic.
-            async with self._read_lock:
-                length_data = b""
-
-                while True:
-                    length_data += await self.reader.readexactly(1)
-
-                    try:
-                        length = types.VarInt.unpack(length_data, ctx=self.ctx)
-                    except types.VarNumBufferLengthError as e:
-                        # Make sure we don't read the length forever.
-                        raise e
-                    except asyncio.CancelledError as e:
-                        # Make sure we can be cancelled.
-                        raise e
-                    except Exception:
-                        # If we fail to read a VarInt, read the next byte and try again.
-                        continue
-
-                    break
-
-                data = await self.reader.readexactly(length)
-
+            data = await self.reader.readexactly(length)
         except asyncio.IncompleteReadError:
             self.close()
             await self.wait_closed()
@@ -246,6 +249,10 @@ class Connection:
 
         This will continue to yield :class:`Packets <.Packet>` until the
         :class:`Connection` is closed.
+
+        .. note::
+
+            This method should not be called twice asynchronously.
 
         Yields
         ------

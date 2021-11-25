@@ -13,7 +13,7 @@ class DisconnectPacket(Packet):
 
     Has no ID of its own, but is the parent class of
     :class:`clientbound.DisconnectLoginPacket <.DisconnectLoginPacket>`
-    and :class:`clientbound.DisconnectPlayPacket <.DisconnectPlayPacket`.
+    and :class:`clientbound.DisconnectPlayPacket <.DisconnectPlayPacket>`.
     """
 
     reason: types.Chat
