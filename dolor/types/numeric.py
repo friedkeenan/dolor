@@ -153,7 +153,7 @@ class VarNum(pak.Type):
             cls._value_range = range(-pak.util.bit(cls.bits - 1), pak.util.bit(cls.bits - 1))
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         num = 0
 
         for i in range(cls._max_bytes):
@@ -171,7 +171,7 @@ class VarNum(pak.Type):
         raise VarNumBufferLengthError(cls)
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         # If 'value' is not an 'int' then checking if it's contained will
         # loop through the (very large) value range instead of just checking
         # comparisons.
@@ -212,9 +212,9 @@ class Angle(pak.Type):
     _default = 0.0
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return math.tau * (UnsignedByte.unpack(buf, ctx=ctx) / 256)
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau), ctx=ctx)

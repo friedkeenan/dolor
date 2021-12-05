@@ -17,9 +17,9 @@ class UUIDString(pak.Type):
     _string_type = String(36)
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return uuid.UUID(cls._string_type.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return cls._string_type.pack(str(value), ctx=ctx)

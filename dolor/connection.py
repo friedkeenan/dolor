@@ -184,6 +184,7 @@ class Connection:
         # We don't need to make sure reading is atomic since this method
         # is only called by 'continuously_read_packets' which does not
         # read several packets at once.
+
         length_data = b""
 
         while True:

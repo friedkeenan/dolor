@@ -66,7 +66,7 @@ class String(pak.Type):
     max_length = 32767
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         length = cls.prefix.unpack(buf, ctx=ctx)
 
         if length > cls.max_length * 4:
@@ -81,7 +81,7 @@ class String(pak.Type):
         return str_data
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         value_len = len(value)
 
         if value_len > cls.max_length:
@@ -116,11 +116,11 @@ class JSON(pak.Type):
     _default = {}
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return json.loads(String.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         # Specify separators to get as compact as possible.
         return String.pack(json.dumps(value, separators=(",", ":")), ctx=ctx)
 
@@ -203,11 +203,11 @@ class StructuredJSON(pak.Type):
         return getattr(cls, cls.__name__)
 
     @classmethod
-    def _default(cls, *, ctx=None):
+    def _default(cls, *, ctx):
         return cls.value_type()()
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         value = JSON.unpack(buf, ctx=ctx)
 
         value_type = cls.value_type()
@@ -221,7 +221,7 @@ class StructuredJSON(pak.Type):
         return value_type(value)
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         value = dict(value)
 
         for key in list(value.keys()):
@@ -295,9 +295,9 @@ class Identifier(pak.Type):
         super().__set__(instance, type(self).Identifier(value))
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return cls.Identifier(String.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return String.pack(str(value), ctx=ctx)

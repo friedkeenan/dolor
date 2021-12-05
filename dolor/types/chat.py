@@ -610,9 +610,9 @@ class Chat(pak.Type):
         super().__set__(instance, value)
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return cls.Chat(JSON.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return JSON.pack(value.as_dict(), ctx=ctx)

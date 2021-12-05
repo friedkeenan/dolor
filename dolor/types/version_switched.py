@@ -29,7 +29,7 @@ class VersionSwitchedType(pak.Type):
     _switcher = None
 
     @classmethod
-    def underlying_type(cls, *, ctx=None):
+    def underlying_type(cls, *, ctx):
         """Gets the underlying type for the :class:`pak.TypeContext`.
 
         Parameters
@@ -46,19 +46,19 @@ class VersionSwitchedType(pak.Type):
         return pak.Type(cls._switcher[ctx.version])
 
     @classmethod
-    def _size(cls, *, ctx=None):
+    def _size(cls, *, ctx):
         return cls.underlying_type(ctx=ctx).size(ctx=ctx)
 
     @classmethod
-    def _default(cls, *, ctx=None):
+    def _default(cls, *, ctx):
         return cls.underlying_type(ctx=ctx).default(ctx=ctx)
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return cls.underlying_type(ctx=ctx).unpack(buf, ctx=ctx)
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return cls.underlying_type(ctx=ctx).pack(value, ctx=ctx)
 
     @classmethod
