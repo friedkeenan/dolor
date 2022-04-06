@@ -171,7 +171,7 @@ class StructuredJSON(pak.Type):
         annotations = getattr(cls, "__annotations__", {})
 
         # Make sure we propagate on the annotation fields.
-        sentinel = util.UniqueSentinel()
+        sentinel = pak.util.UniqueSentinel()
         attrs    = {}
         for key in annotations.keys():
             attr = getattr(cls, key, sentinel)

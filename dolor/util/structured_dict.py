@@ -1,9 +1,10 @@
 """Contains :class:`util.StructuredDict <.util.structured_dict.StructuredDict>`."""
 
 import collections
+import pak
 from dataclasses import dataclass
 
-from .misc import default, UniqueSentinel
+from .misc import default
 
 __all__ = [
     "StructuredDict",
@@ -53,7 +54,7 @@ class StructuredDict(collections.abc.MutableMapping):
     {'key': 2, 'other_key': 'example'}
     """
 
-    UNSPECIFIED = UniqueSentinel("UNSPECIFIED")
+    UNSPECIFIED = pak.util.UniqueSentinel("UNSPECIFIED")
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
