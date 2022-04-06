@@ -1,4 +1,5 @@
 import asyncio
+import pak
 import pytest
 
 from dolor import *
@@ -83,7 +84,7 @@ class WritePacketTest(Client):
 
         assert self.listener_called
 
-    @packet_listener(0x69, outgoing=True)
+    @pak.packet_listener(GenericPacketWithID(0x69), outgoing=True)
     async def outgoing_listener(self, packet):
         assert packet.data == b"test"
 
@@ -100,7 +101,7 @@ class IncomingPacketListenTest(Client):
 
         assert self.listener_called
 
-    @packet_listener(0x69)
+    @pak.packet_listener(GenericPacketWithID(0x69))
     async def incoming_listener(self, packet):
         assert packet.data == b"test"
 
@@ -202,7 +203,7 @@ class OfflineLoginTest(Client):
             b"\x0E" + b"\x82\x02" + b"\x78\x9C\xCB\xFC\x3F\xD2\x01\x00\x71\xe2\x00\x78"
         )
 
-    @packet_listener(0x69)
+    @pak.packet_listener(GenericPacketWithID(0x69))
     async def listener(self, packet):
         assert packet == GenericPacketWithID(0x69)(data=b"\xFF" * (256 + 1))
 

@@ -41,10 +41,8 @@ class PacketContext(pak.PacketContext):
     def __hash__(self):
         return hash(self.version)
 
-class Packet(pak.Packet):
+class Packet(pak.Packet, id_type=types.VarInt):
     """A Minecraft packet."""
-
-    _id_type = types.VarInt
 
 class GenericPacket(Packet):
     """A generic Minecraft packet."""

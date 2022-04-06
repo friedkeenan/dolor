@@ -52,5 +52,4 @@ Other Modules
     :nosignatures:
 
     ~connection
-    ~packet_handler
     ~versions

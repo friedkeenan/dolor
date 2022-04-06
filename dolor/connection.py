@@ -8,6 +8,7 @@ import pak
 from .versions import Version
 from .packets import (
     PacketContext,
+    Packet,
     ServerboundPacket,
     ClientboundPacket,
     ConnectionState,
@@ -220,7 +221,7 @@ class Connection:
 
         data = await self._decompressed_file_object(data)
 
-        id         = types.VarInt.unpack(data)
+        id         = Packet.unpack_id(data)
         packet_cls = self._packet_for_id(id, self._available_packets, ctx=self.ctx)
 
         if packet_cls is None:

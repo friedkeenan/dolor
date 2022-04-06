@@ -2,10 +2,10 @@
 
 import asyncio
 import time
+import pak
 from aioconsole import aprint
 
 from ..connection import Connection
-from ..packet_handler import packet_listener, PacketHandler
 from ..packets import ConnectionState, clientbound, serverbound
 
 from .. import types
@@ -14,7 +14,7 @@ __all__ = [
     "Client",
 ]
 
-class Client(Connection, PacketHandler):
+class Client(Connection, pak.AsyncPacketHandler):
     """A Minecraft client.
 
     Parameters
@@ -48,7 +48,7 @@ class Client(Connection, PacketHandler):
     ):
         # Cannot use 'super' here because of multiple inheritance with non-matching constructors.
         Connection.__init__(self, clientbound, version=version)
-        PacketHandler.__init__(self)
+        pak.AsyncPacketHandler.__init__(self)
 
         self.address = address
         self.port    = port
@@ -60,8 +60,8 @@ class Client(Connection, PacketHandler):
 
         self._listen_sequentially = True
 
-    def register_packet_listener(self, listener, *packet_checkers, outgoing=False):
-        """Overrides :meth:`.PacketHandler.register_packet_listener`.
+    def register_packet_listener(self, listener, *packet_types, outgoing=False):
+        r"""Overrides :meth:`pak.AsyncPacketHandler.register_packet_listener`.
 
         This adds the ``outgoing`` keyword argument to
         check against for :class:`~.Packet` listeners.
@@ -70,18 +70,18 @@ class Client(Connection, PacketHandler):
         ----------
         listener : coroutine function
             The :class:`~.Packet` listener.
-        *packet_checkers
-            See :meth:`.PacketHandler.register_packet_listener`.
+        *packet_types
+            The :class:`~.Packet`\s to listen to.
         outgoing : :class:`bool`
-            Whether ``listener`` listens to outgoing :class:`Packets <.Packet>`,
+            Whether ``listener`` listens to outgoing :class:`~.Packet`\s,
             i.e. those that are sent to the :class:`~.Server`.
         """
 
-        super().register_packet_listener(listener, *packet_checkers, outgoing=outgoing)
+        super().register_packet_listener(listener, *packet_types, outgoing=outgoing)
 
-    async def _listen_to_packet(self, packet, **check_kwargs):
+    async def _listen_to_packet(self, packet, **flags):
         async with self.listener_task_context(listen_sequentially=self._listen_sequentially):
-            for listener in self.listeners_for_packet(self, packet, **check_kwargs):
+            for listener in self.listeners_for_packet(packet, **flags):
                 self.create_listener_task(listener(packet))
 
     async def _listen_to_incoming_packets(self):
@@ -246,7 +246,7 @@ class Client(Connection, PacketHandler):
 
     # Default packet listeners.
 
-    @packet_listener(clientbound.DisconnectPacket)
+    @pak.packet_listener(clientbound.DisconnectPacket)
     async def _on_disconnect(self, packet):
         # TODO: Use aiologger?
         await aprint("Disconnected:", packet.reason.flatten())
@@ -254,16 +254,16 @@ class Client(Connection, PacketHandler):
         self.close()
         await self.wait_closed()
 
-    @packet_listener(clientbound.EncryptionRequestPacket)
+    @pak.packet_listener(clientbound.EncryptionRequestPacket)
     async def _on_encryption_request(self, packet):
         # TODO: Encryption.
         raise NotImplementedError
 
-    @packet_listener(clientbound.SetCompressionPacket)
+    @pak.packet_listener(clientbound.SetCompressionPacket)
     async def _on_set_compression(self, packet):
         self.compression_threshold = packet.threshold
 
-    @packet_listener(clientbound.LoginSuccessPacket)
+    @pak.packet_listener(clientbound.LoginSuccessPacket)
     async def _on_login_success(self, packet):
         # Update our name to what the server tells us.
         self.name = packet.username
@@ -274,7 +274,7 @@ class Client(Connection, PacketHandler):
         # handle completely asynchronously.
         self._listen_sequentially = False
 
-    @packet_listener(clientbound.KeepAlivePacket)
+    @pak.packet_listener(clientbound.KeepAlivePacket)
     async def _on_keep_alive(self, packet):
         await self.write_packet(
             serverbound.KeepAlivePacket,
