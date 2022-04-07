@@ -1,4 +1,4 @@
-"""Clientbound :class:`Packets <.Packet>`."""
+r"""Clientbound :class:`~.Packet`\s"""
 
 from .common import *
 from .login import *

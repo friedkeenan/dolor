@@ -464,12 +464,12 @@ class Chat(pak.Type):
 
         @classmethod
         def fields(cls):
-            """Gets the :class:`Fields <.Field>` of the :class:`Chat.Chat` object.
+            r"""Gets the :class:`Field`\s of the :class:`Chat.Chat` object.
 
             Returns
             -------
-            :class:`list` of :class:`Fields <.Field>`
-                The :class:`Fields <.Field>` of the :class:`Chat.Chat` object.
+            :class:`list` of :class:`Field`\s
+                The :class:`Field`\s of the :class:`Chat.Chat` object.
             """
 
             return [value for _, value in inspect.getmembers(cls, lambda x: isinstance(x, cls.Field))]

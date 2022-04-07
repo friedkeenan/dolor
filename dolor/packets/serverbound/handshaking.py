@@ -1,4 +1,4 @@
-""":class:`Packets <.Packet>` in the :attr:`.ConnectionState.Handshaking` state."""
+r""":class:`~.Packet`\s in the :attr:`.ConnectionState.Handshaking` state."""
 
 import pak
 

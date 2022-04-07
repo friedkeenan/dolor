@@ -125,7 +125,7 @@ class JSON(pak.Type):
         return String.pack(json.dumps(value, separators=(",", ":")), ctx=ctx)
 
 class StructuredJSON(pak.Type):
-    """Structured JSON data.
+    r"""Structured JSON data.
 
     :meta no-undoc-members:
 
@@ -139,8 +139,7 @@ class StructuredJSON(pak.Type):
 
     When unpacking, any :class:`dict` values in the JSON data will be passed to the
     constructor of the corresponding value of the annotation, allowing you to use
-    :class:`util.StructuredDicts <.util.structured_dict.StructuredDict>` as annotation
-    values.
+    :class:`~.util.StructuredDict`\s as annotation values.
 
     When packing, for any values of the object to pack which have an :meth:`as_dict`
     method, said method will be used to pack the value into a :class:`dict`. If the

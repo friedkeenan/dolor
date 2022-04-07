@@ -1,4 +1,4 @@
-"""Miscellaneous :class:`Packets <.Packet>`."""
+r"""Miscellaneous :class:`Packet`\s."""
 
 from ..common import DisconnectPacket
 

@@ -1,4 +1,4 @@
-""":class:`Packets <.Packet>` in the :attr:`.ConnectionState.Login` state."""
+r""":class:`~.Packet`\s in the :attr:`.ConnectionState.Login` state."""
 
 import pak
 

@@ -1,4 +1,4 @@
-"""Serverbound :class:`Packets <.Packet>`."""
+r"""Serverbound :class:`~.Packet`\s."""
 
 from .handshaking import *
 from .login import *

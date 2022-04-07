@@ -94,7 +94,7 @@ class Client(Connection, pak.AsyncPacketHandler):
     async def write_packet_instance(self, packet):
         """Overrides :meth:`.Connection.write_packet_instance`.
 
-        This allows listening to outgoing :class:`Packets <.Packet>`.
+        This allows listening to outgoing :class:`~.Packet`\s.
         """
 
         await self._listen_to_packet(packet, outgoing=True)
@@ -201,10 +201,10 @@ class Client(Connection, pak.AsyncPacketHandler):
         return response, ping
 
     async def login(self):
-        """Logs into the :class:`~.Server` and begins listening to incoming :class:`Packets <.Packet>`.
+        r"""Logs into the :class:`~.Server` and begins listening to incoming :class:`~.Packet`\s.
 
         If the :class:`Client` has not been given authentication data, then
-        it may only connect to "offline" :class:`Servers <.Server>` and the
+        it may only connect to "offline" :class:`~.Server`\s and the
         ``name`` parameter must be passed on construction.
 
         Raises

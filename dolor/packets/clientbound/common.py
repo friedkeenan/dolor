@@ -1,4 +1,4 @@
-""":class:`~.Packet` types common between :class:`ConnectionStates <.ConnectionState>`."""
+r""":class:`~.Packet` types common between :class:`~.ConnectionState`\s."""
 
 from ..packet import Packet
 

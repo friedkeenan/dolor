@@ -254,7 +254,7 @@ class Version(collections.abc.Mapping):
         return self == other or self < other
 
 class VersionRange:
-    """A range of :class:`Versions <Version>`.
+    r"""A range of :class:`Version`\s.
 
     A :class:`Version` is contained within the range if
     it is greater than or equal to ``start`` and less
@@ -297,7 +297,7 @@ class VersionRange:
         return contained
 
 class VersionSwitcher:
-    """A utility to for getting different values based different :class:`Versions <Version>`.
+    r"""A utility to for getting different values based different :class:`Version`\s.
 
     Parameters
     ----------
@@ -306,7 +306,7 @@ class VersionSwitcher:
 
         - A :class:`function` which takes one argument (the :class:`Version`) and returns a :class:`bool`, indicating whether the :class:`Version` matches.
         - A :class:`str` representing the :class:`Version` name.
-        - A container (checked with :func:`util.is_container <.util.interfaces.is_container>`) which contains :class:`Versions <Version>`.
+        - A container (checked with :func:`util.is_container <.util.interfaces.is_container>`) which contains :class:`Version`\s.
         - ``None``, whose value will be the default if no other key matches.
 
     See Also

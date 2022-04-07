@@ -245,11 +245,11 @@ class Connection:
             packet_holder.set(None)
 
     async def continuously_read_packets(self):
-        """Continuously reads and yields all incoming :class:`Packets <.Packet>`.
+        r"""Continuously reads and yields all incoming :class:`~.Packet`\s.
 
         This must be iterated over for :meth:`read_packet` to function.
 
-        This will continue to yield :class:`Packets <.Packet>` until the
+        This will continue to yield :class:`~.Packet`\s until the
         :class:`Connection` is closed.
 
         .. note::

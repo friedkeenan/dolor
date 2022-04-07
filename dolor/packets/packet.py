@@ -1,4 +1,4 @@
-"""The foundation for :class:`Packets <.Packet>`."""
+r"""The foundation for Minecraft :class:`~.Packet`\s."""
 
 import enum
 import pak
@@ -80,52 +80,52 @@ def GenericPacketWithID(id):
     ))
 
 class ServerboundPacket(Packet):
-    """A serverbound :class:`Packet`.
+    r"""A serverbound :class:`Packet`.
 
-    :class:`Packets <Packet>` which are sent to the server should inherit
+    :class:`Packet`\s which are sent to the server should inherit
     from :class:`ServerboundPacket` to be registered as such.
     """
 
 class ClientboundPacket(Packet):
-    """A clientbound :class:`Packet`.
+    r"""A clientbound :class:`Packet`.
 
-    :class:`Packets <Packet>` which are sent to the client should inherit
+    :class:`Packet`\s which are sent to the client should inherit
     from :class:`ClientboundPacket` to be registered as such.
     """
 
 class HandshakingPacket(Packet):
-    """A packet in the :attr:`.ConnectionState.Handshaking` state of the protocol.
+    r"""A packet in the :attr:`.ConnectionState.Handshaking` state of the protocol.
 
-    :class:`Packets <Packet>` which are in the "Handshaking" state should
+    :class:`Packet`\s which are in the "Handshaking" state should
     inherit from :class:`HandshakingPacket` to be registered as such.
     """
 
 class StatusPacket(Packet):
-    """A packet in the :attr:`.ConnectionState.Status` state of the protocol.
+    r"""A packet in the :attr:`.ConnectionState.Status` state of the protocol.
 
-    :class:`Packets <Packet>` which are in the "Status" state should
+    :class:`Packet`\s which are in the "Status" state should
     inherit from :class:`StatusPacket` to be registered as such.
     """
 
 class LoginPacket(Packet):
-    """A packet in the :attr:`.ConnectionState.Login` state of the protocol.
+    r"""A packet in the :attr:`.ConnectionState.Login` state of the protocol.
 
-    :class:`Packets <Packet>` which are in the "Login" state should
+    :class:`Packet`\s which are in the "Login" state should
     inherit from :class:`LoginPacket` to be registered as such.
     """
 
 class PlayPacket(Packet):
-    """A packet in the :attr:`.ConnectionState.Play` state of the protocol.
+    r"""A packet in the :attr:`.ConnectionState.Play` state of the protocol.
 
-    :class:`Packets <Packet>` which are in the "Play" state should
+    :class:`Packet`\s which are in the "Play" state should
     inherit from :class:`PlayPacket` to be registered as such.
     """
 
 class ConnectionState(enum.Enum):
-    """The state of a :class:`~.Connection`.
+    r"""The state of a :class:`~.Connection`.
 
     The state of a :class:`~.Connection` determines which
-    :class:`Packtes <Packet>` it may send and receive.
+    :class:`Packte`\s it may send and receive.
     """
 
     Handshaking = 0
@@ -135,8 +135,9 @@ class ConnectionState(enum.Enum):
 
     @property
     def packet_base_class(self):
-        """The corresponding base class for :class:`Packets <Packet>` in the :class:`ConnectionState`."""
+        r"""The corresponding base class for :class:`Packet`\s in the :class:`ConnectionState`."""
 
+        # TODO: When Python 3.9 support is dropped, rewrite as a match statement.
         return {
             self.Handshaking: HandshakingPacket,
             self.Status:      StatusPacket,
