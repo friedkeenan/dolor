@@ -92,7 +92,7 @@ class Client(Connection, pak.AsyncPacketHandler):
             await self.end_listener_tasks()
 
     async def write_packet_instance(self, packet):
-        """Overrides :meth:`.Connection.write_packet_instance`.
+        r"""Overrides :meth:`.Connection.write_packet_instance`.
 
         This allows listening to outgoing :class:`~.Packet`\s.
         """
