@@ -46,7 +46,7 @@ class Client(Connection, pak.AsyncPacketHandler):
         name         = None,
         translations = None,
     ):
-        # Cannot use 'super' here because of multiple inheritance with non-matching constructors.
+        # Cannot use 'super' here because of multiple inheritance with non-cooperating constructors.
         Connection.__init__(self, clientbound, version=version)
         pak.AsyncPacketHandler.__init__(self)
 

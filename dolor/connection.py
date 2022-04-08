@@ -58,7 +58,7 @@ class Connection:
         self.ctx   = PacketContext(version)
         self.state = ConnectionState.Handshaking
 
-        self.compression_threshold = -1
+        self.disable_compression()
 
         self.reader = None
         self.writer = None
@@ -114,6 +114,9 @@ class Connection:
 
         Should be used alongside the :meth:`wait_closed` method.
         """
+
+        self.state = ConnectionState.Handshaking
+        self.disable_compression()
 
         # 'StreamReader's do not have a 'close' method.
         if self.writer is not None:
@@ -323,7 +326,7 @@ class Connection:
 
         This method creates a :class:`~.Packet` instance using the :meth:`create_packet`
         method. If you wish to write a pre-existing :class:`~.Packet` instance,
-        then the :meth:`write_packet_instance` method should be used instea.
+        then the :meth:`write_packet_instance` method should be used instead.
 
         This method ultimately calls :meth:`write_packet_instance`.
 

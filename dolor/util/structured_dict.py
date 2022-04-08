@@ -72,6 +72,9 @@ class StructuredDict(collections.abc.MutableMapping):
 
         # TODO: Match signature, along with annotations, appropriately
         #
+        # TODO: When Python 3.7 support is dropped, make '_items' a
+        # positional-only argument.
+        #
         # NOTE: '_items' having a mutable default is okay since we
         # always take a copy of it.
         def new_init(self, _items={}, **kwargs):
