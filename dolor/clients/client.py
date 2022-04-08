@@ -106,7 +106,12 @@ class Client(Connection, pak.AsyncPacketHandler):
 
         Opens a connection, setting the :attr:`reader <.Connection.reader>` and
         :attr:`writer <.Connection.writer>` attributes.
+
+        Also resets the client to its initial state.
         """
+
+        self.state = ConnectionState.Handshaking
+        self.disable_compression()
 
         self.reader, self.writer = await asyncio.open_connection(self.address, self.port)
 

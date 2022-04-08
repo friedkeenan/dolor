@@ -115,9 +115,6 @@ class Connection:
         Should be used alongside the :meth:`wait_closed` method.
         """
 
-        self.state = ConnectionState.Handshaking
-        self.disable_compression()
-
         # 'StreamReader's do not have a 'close' method.
         if self.writer is not None:
             self.writer.close()
