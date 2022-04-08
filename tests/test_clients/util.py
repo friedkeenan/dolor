@@ -6,13 +6,18 @@ from ..util import ByteStream
 
 from dolor import *
 
-class _ClientTest(Client):
+__all__ = [
+    "ClientTest",
+    "client_test",
+]
+
+class ClientTest(Client):
     received_data    = None
 
     reader_cls = ByteStream
     writer_cls = ByteStream
 
-    def __init__(self, address="test", *args, version=Version.latest(), **kwargs):
+    def __init__(self, address="test_address", *args, version=Version.latest(), **kwargs):
         super().__init__(address, *args, version=version, **kwargs)
 
         self.sent_packets = []
@@ -81,7 +86,7 @@ def client_test(client_cls=None, caller_frame=None, **kwargs):
     if client_cls is None:
         return lambda client_cls: client_test(client_cls, caller_frame, **kwargs)
 
-    new_cls = type(client_cls.__name__, (client_cls, _ClientTest), dict(
+    new_cls = type(client_cls.__name__, (client_cls, ClientTest), dict(
         __module__ = client_cls.__module__,
     ))
 

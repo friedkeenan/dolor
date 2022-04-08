@@ -60,7 +60,7 @@ class Client(Connection, pak.AsyncPacketHandler):
 
         self._listen_sequentially = True
 
-    def register_packet_listener(self, listener, *packet_types, outgoing=False):
+    def register_packet_listener(self, listener, *packet_types, outgoing=False, **flags):
         r"""Overrides :meth:`pak.AsyncPacketHandler.register_packet_listener`.
 
         This adds the ``outgoing`` keyword argument to
@@ -75,9 +75,11 @@ class Client(Connection, pak.AsyncPacketHandler):
         outgoing : :class:`bool`
             Whether ``listener`` listens to outgoing :class:`~.Packet`\s,
             i.e. those that are sent to the :class:`~.Server`.
+        **flags
+            Various other flags for :class:`~.Packet` listeners.
         """
 
-        super().register_packet_listener(listener, *packet_types, outgoing=outgoing)
+        super().register_packet_listener(listener, *packet_types, outgoing=outgoing, **flags)
 
     async def _listen_to_packet(self, packet, **flags):
         async with self.listener_task_context(listen_sequentially=self._listen_sequentially):

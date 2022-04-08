@@ -10,6 +10,7 @@ Clients
     :nosignatures:
 
     ~clients.client
+    ~clients.debug
 
 Packets
 #######

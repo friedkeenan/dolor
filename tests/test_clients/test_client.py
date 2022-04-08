@@ -147,7 +147,7 @@ class StatustTest(Client):
                 serverbound.HandshakePacket,
 
                 protocol       = 340,
-                server_address = "test",
+                server_address = "test_address",
                 server_port    = 25565,
                 next_state     = ConnectionState.Status,
             ),
@@ -191,7 +191,7 @@ class OfflineLoginTest(Client):
         # Test that packet compression works.
         assert self.sent_data == (
             # Handshake packet.
-            b"\x0B" + b"\x00" + b"\xD4\x02" + b"\x04test" + b"\x63\xDD" + b"\x02" +
+            b"\x13" + b"\x00" + b"\xD4\x02" + b"\x0Ctest_address" + b"\x63\xDD" + b"\x02" +
 
             # Login start packet.
             b"\x0A" + b"\x00" + b"\x08username" +
@@ -248,7 +248,7 @@ class KeepAliveTest(Client):
                 serverbound.HandshakePacket,
 
                 protocol       = 340,
-                server_address = "test",
+                server_address = "test_address",
                 server_port    = 25565,
                 next_state     = ConnectionState.Login,
             ),
