@@ -1,4 +1,4 @@
-r"""Contains :class:`~.Client`\s that give debug information."""
+r""":class:`~.Client`\s that give debug information."""
 
 import pak
 from aioconsole import aprint

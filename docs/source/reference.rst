@@ -9,6 +9,7 @@ Clients
     :toctree: reference
     :nosignatures:
 
+    ~clients.chat
     ~clients.client
     ~clients.debug
 
@@ -53,4 +54,5 @@ Other Modules
     :nosignatures:
 
     ~connection
+    ~enums
     ~versions

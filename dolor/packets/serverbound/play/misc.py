@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 class ChatMessagePacket(ServerboundPacket, PlayPacket):
-    """A :class:`~.types.chat.Chat` message from the :class:`~.Client`.
+    """A :class:`~.Chat.Chat` message from the :class:`~.Client`.
 
     For messages from the :class:`~.Server`, see
     :class:`clientbound.ChatMessagePacket <.clientbound.play.misc.ChatMessagePacket>`.

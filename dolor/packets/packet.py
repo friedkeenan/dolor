@@ -121,6 +121,7 @@ class PlayPacket(Packet):
     inherit from :class:`PlayPacket` to be registered as such.
     """
 
+# TODO: Should this be in the 'enums' module?
 class ConnectionState(enum.Enum):
     r"""The state of a :class:`~.Connection`.
 

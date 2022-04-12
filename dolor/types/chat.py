@@ -431,28 +431,48 @@ class Chat(pak.Type):
         _positional_format_pattern = re.compile(r"%[sd]")
 
         @classmethod
+        def _parse_translation_file(cls, file):
+            initial_offset = file.tell()
+
+            # Try to decode as JSON data first, then as a .lang file.
+            try:
+                cls._translation_strings = json.load(file)
+
+            except json.JSONDecodeError:
+                file.seek(initial_offset)
+
+                for line in file.readlines():
+                    line = line.strip()
+                    if len(line) == 0:
+                        continue
+
+                    key, value = line.split("=", 1)
+
+                    cls._translation_strings[key] = value
+
+        @classmethod
         def load_translations(cls, translations):
             """Loads translation keys for  use with :meth:`flatten`.
 
             Parameters
             ----------
             translations : pathlike or :class:`dict` or string file object
-                If pathlike, then the file at that path is opened and loaded
-                as JSON data.
+                If pathlike, then the file at that path is opened and parsing
+                is attempted.
 
                 If :class:`dict`, then ``translations`` is treated as the loaded
-                JSON data of a file.
+                data of a file.
 
-                If a string file object, then JSON data is loaded from it.
+                If a string file object, then parsing it is attempted.
             """
 
             if util.is_pathlike(translations):
                 with open(translations) as f:
-                    cls._translation_strings = json.load(f)
+                    cls._parse_translation_file(f)
             elif isinstance(translations, dict):
                 cls._translation_strings = translations
             else:
-                cls._translation_strings = json.load(translations)
+                cls._parse_translation_file(translations)
 
             for key, value in cls._translation_strings.items():
                 # TODO: Do we want stricter formatting types, e.g. putting 's' and 'd' in the format strings?

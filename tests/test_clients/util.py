@@ -90,11 +90,10 @@ def client_test(client_cls=None, caller_frame=None, **kwargs):
         __module__ = client_cls.__module__,
     ))
 
-    @pytest.mark.asyncio
-    async def test():
-        await new_cls(**kwargs).start()
+    def real_test():
+        new_cls(**kwargs).run()
 
     # Set variable in the caller's scope
-    caller_frame.f_globals[f"test_{client_cls.__name__}"] = test
+    caller_frame.f_globals[f"test_{client_cls.__name__}"] = real_test
 
     return new_cls
