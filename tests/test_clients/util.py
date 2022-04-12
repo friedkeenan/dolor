@@ -62,7 +62,7 @@ class ClientTest(Client):
     def received_packets(self):
         return None
 
-    async def startup(self):
+    async def open_streams(self):
         received_packets = self.received_packets()
 
         if self.received_data is None and received_packets is None:
@@ -76,8 +76,7 @@ class ClientTest(Client):
         else:
             raw_packet_data = self.pack_packets(received_packets)
 
-        self.reader = self.reader_cls(raw_packet_data)
-        self.writer = self.writer_cls()
+        return self.reader_cls(raw_packet_data), self.writer_cls()
 
 def client_test(client_cls=None, caller_frame=None, **kwargs):
     if caller_frame is None:

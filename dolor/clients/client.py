@@ -103,19 +103,31 @@ class Client(Connection, pak.AsyncPacketHandler):
 
         return await super().write_packet_instance(packet)
 
+    async def open_streams(self):
+        """Opens the input and output streams for the :class:`Client`.
+
+        Returns
+        -------
+        :class:`asyncio.StreamReader`
+            The asynchronous reader.
+        :class:`asyncio.StreamWriter`
+            The asynchronous writer.
+        """
+
+        return await asyncio.open_connection(self.address, self.port)
+
     async def startup(self):
         """Called when the :class:`Client` is started.
 
-        Opens a connection, setting the :attr:`reader <.Connection.reader>` and
-        :attr:`writer <.Connection.writer>` attributes.
-
-        Also resets the client to its initial state.
+        Resets the :class:`Client` to its initial state and sets the
+        :attr:`reader <.Connection.reader>` and :attr:`writer <.Connection.writer>`
+        attributes using the output of :meth:`open_streams`.
         """
 
         self.state = ConnectionState.Handshaking
         self.disable_compression()
 
-        self.reader, self.writer = await asyncio.open_connection(self.address, self.port)
+        self.reader, self.writer = await self.open_streams()
 
     async def on_start(self):
         """Called after :meth:`startup`.

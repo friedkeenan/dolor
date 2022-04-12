@@ -11,7 +11,6 @@ class ChatTest(clients.ChatClient, ClientTest):
             self.create_packet(
                 clientbound.LoginSuccessPacket,
 
-                # Default UUID.
                 username = "username",
             ),
 

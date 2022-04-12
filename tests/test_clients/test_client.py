@@ -4,7 +4,7 @@ import pytest
 
 from dolor import *
 
-from .util import client_test
+from .util import client_test, ClientTest
 
 from ..util import CyclingByteStream
 
@@ -265,3 +265,31 @@ class KeepAliveTest(Client):
                 keep_alive_id = 0x69,
             ),
         ]
+
+class MultipleRunTest(ClientTest):
+    run_count = 0
+
+    def received_packets(self):
+        return [
+            self.create_packet(
+                clientbound.LoginSuccessPacket,
+
+                username = "username",
+            ),
+        ]
+
+    async def on_start(self):
+        type(self).run_count += 1
+
+        await super().on_start()
+
+def test_multiple_run():
+    client = MultipleRunTest(name="username")
+
+    assert MultipleRunTest.run_count == 0
+
+    client.run()
+    assert MultipleRunTest.run_count == 1
+
+    client.run()
+    assert MultipleRunTest.run_count == 2
