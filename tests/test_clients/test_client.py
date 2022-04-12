@@ -283,6 +283,8 @@ class MultipleRunTest(ClientTest):
 
         await super().on_start()
 
+        assert self.state == ConnectionState.Play
+
 def test_multiple_run():
     client = MultipleRunTest(name="username")
 
