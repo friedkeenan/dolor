@@ -2,8 +2,6 @@ import pak
 
 from dolor import *
 
-from ..util import assert_type_marshal
-
 def test_version_switched():
     # TODO: Add more versions once we support more than one.
 
@@ -15,7 +13,7 @@ def test_version_switched():
 
     ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         switched_type,
 
         (0,        b"\x00"),
@@ -34,7 +32,7 @@ def test_typelike_values():
 
     ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         switched_type,
 
         (None, b""),

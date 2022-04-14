@@ -1,14 +1,13 @@
+import pak
 import uuid
 
 from dolor import *
 
-from ...util import assert_packet_marshal_func
-
-test_disconnect_login = assert_packet_marshal_func(
+test_disconnect_login = pak.test.assert_packet_marshal_func(
     (clientbound.DisconnectLoginPacket(reason="test"), b'\x00\x0F{"text":"test"}')
 )
 
-test_encryption_request = assert_packet_marshal_func(
+test_encryption_request = pak.test.assert_packet_marshal_func(
     (
         clientbound.EncryptionRequestPacket(
             server_id    = "",
@@ -20,7 +19,7 @@ test_encryption_request = assert_packet_marshal_func(
     ),
 )
 
-test_login_success = assert_packet_marshal_func(
+test_login_success = pak.test.assert_packet_marshal_func(
     (
         clientbound.LoginSuccessPacket(uuid=uuid.UUID(int=0), username="test"),
 
@@ -28,7 +27,7 @@ test_login_success = assert_packet_marshal_func(
     ),
 )
 
-test_set_compression = assert_packet_marshal_func(
+test_set_compression = pak.test.assert_packet_marshal_func(
     (
         clientbound.SetCompressionPacket(threshold=256),
 

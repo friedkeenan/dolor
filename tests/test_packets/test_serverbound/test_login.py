@@ -1,8 +1,8 @@
+import pak
+
 from dolor import *
 
-from ...util import assert_packet_marshal_func
-
-test_login_start = assert_packet_marshal_func(
+test_login_start = pak.test.assert_packet_marshal_func(
     (
         serverbound.LoginStartPacket(name="test"),
 
@@ -10,7 +10,7 @@ test_login_start = assert_packet_marshal_func(
     ),
 )
 
-test_encryption_response = assert_packet_marshal_func(
+test_encryption_response = pak.test.assert_packet_marshal_func(
     (
         serverbound.EncryptionResponsePacket(
             encrypted_shared_secret = b"shared_secret_data",

@@ -1,10 +1,10 @@
-from dolor import *
+import pak
 
-from ...util import assert_packet_marshal_func
+from dolor import *
 
 Response = clientbound.ResponsePacket.Response
 
-test_response = assert_packet_marshal_func(
+test_response = pak.test.assert_packet_marshal_func(
     (
         clientbound.ResponsePacket(
             response = Response.Response(
@@ -47,6 +47,6 @@ test_response = assert_packet_marshal_func(
     ),
 )
 
-test_pong = assert_packet_marshal_func(
+test_pong = pak.test.assert_packet_marshal_func(
     (clientbound.PongPacket(payload=1), b"\x01\x00\x00\x00\x00\x00\x00\x00\x01"),
 )

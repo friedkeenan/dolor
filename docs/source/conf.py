@@ -19,7 +19,7 @@ import dolor
 # -- Project information -----------------------------------------------------
 
 project   = "dolor"
-copyright = "2021, friedkeenan"
+copyright = "2021-2022, friedkeenan"
 author    = "friedkeenan"
 release   = dolor.__version__
 

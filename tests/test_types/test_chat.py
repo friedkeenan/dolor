@@ -1,6 +1,6 @@
-from dolor import *
+import pak
 
-from ..util import assert_type_marshal_func
+from dolor import *
 
 def test_chat_parsing():
     chat = types.Chat.Chat("test")
@@ -138,7 +138,7 @@ def test_load_translations(tmp_path):
 
     assert chat.flatten() == "Test message"
 
-test_chat_type = assert_type_marshal_func(
+test_chat_type = pak.test.assert_type_marshal_func(
     types.Chat,
 
     (types.Chat.Chat("test"), b'\x0F{"text":"test"}')

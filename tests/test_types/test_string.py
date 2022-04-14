@@ -1,11 +1,10 @@
+import pak
 import pytest
 
 from dolor import *
 
-from ..util import assert_type_marshal, assert_type_marshal_func
-
 def test_string():
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         types.String,
 
         ("",     b"\x00"),
@@ -30,7 +29,7 @@ def test_string():
 def test_called_string():
     small_string = types.String(4)
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         small_string,
 
         ("",     b"\x00"),
@@ -47,7 +46,7 @@ def test_called_string():
 
         small_string.pack("a" * invalid_string_length)
 
-test_json = assert_type_marshal_func(
+test_json = pak.test.assert_type_marshal_func(
     types.JSON,
 
     ({}, b"\x02{}"),
@@ -63,7 +62,7 @@ def test_structured_json():
     assert structured_type is TestStructured.TestStructured
     assert issubclass(structured_type, util.StructuredDict)
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         TestStructured,
 
         (structured_type(test=1), b'\x0A{"test":1}'),
@@ -74,7 +73,7 @@ def test_structured_json():
 
     conversion_type = TestConversion.value_type()
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         TestConversion,
 
         (conversion_type(test=structured_type(test=1)), b'\x13{"test":{"test":1}}'),
@@ -92,7 +91,7 @@ def test_identifier():
 
     assert types.Identifier.Identifier(test_id) == test_id
 
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         types.Identifier,
 
         (test_id, b"\x0Fminecraft:stone")

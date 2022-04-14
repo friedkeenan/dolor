@@ -1,8 +1,8 @@
+import pak
+
 from dolor import *
 
-from ....util import assert_packet_marshal_func
-
-test_chat_message = assert_packet_marshal_func(
+test_chat_message = pak.test.assert_packet_marshal_func(
     (
         serverbound.ChatMessagePacket(message="test"),
 
@@ -10,7 +10,7 @@ test_chat_message = assert_packet_marshal_func(
     ),
 )
 
-test_keep_alive = assert_packet_marshal_func(
+test_keep_alive = pak.test.assert_packet_marshal_func(
     (
         serverbound.KeepAlivePacket(keep_alive_id=0x69),
 

@@ -1,16 +1,15 @@
 import math
+import pak
 import pytest
 
 from dolor import *
-
-from ..util import assert_type_marshal
 
 # We avoid testing basic numeric types that simply
 # inherit from pak types, since that would amount to
 # testing the library when that is not our responsibility.
 
 def test_var_int():
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         types.VarInt,
 
         (0,         b"\x00"),
@@ -36,7 +35,7 @@ def test_var_int():
         types.VarInt.pack(None)
 
 def test_var_long():
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         types.VarLong,
 
         (0,         b"\x00"),
@@ -59,7 +58,7 @@ def test_var_long():
         types.VarLong.pack(-2**63 - 1)
 
 def test_angle():
-    assert_type_marshal(
+    pak.test.assert_type_marshal(
         types.Angle,
 
         (math.tau * 0 / 8, b"\x00"),

@@ -1,8 +1,8 @@
 """Numeric types.
 
 The names for these types are based on the names from https://wiki.vg/
-so that our packet definitions may use the same terminology, despite
-the imprecise nature of the names.
+so that our :class:`~.Packet` definitions may use the same terminology,
+despite the imprecise nature of the names.
 
 All numeric types are big endian.
 """

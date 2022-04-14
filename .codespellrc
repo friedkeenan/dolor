@@ -1,2 +1,2 @@
 [codespell]
-skip = docs/build
+skip = docs/build,en_us.*
