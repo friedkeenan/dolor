@@ -45,7 +45,7 @@ class Packet(pak.Packet, id_type=types.VarInt):
     """A Minecraft packet."""
 
 class GenericPacket(Packet):
-    """A generic Minecraft packet."""
+    """A generic Minecraft :class:`Packet`."""
 
     # NOTE: This inherits from our 'Packet' class instead of
     # 'pak.GenericPacket' so that if we add utilities to our

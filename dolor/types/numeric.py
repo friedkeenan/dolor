@@ -96,7 +96,7 @@ class VarNumBufferLengthError(Exception):
     """
 
     def __init__(self, var_num_cls):
-        super().__init__(f"'{var_num_cls.__name__}' cannot read beyond {var_num_cls._max_bytes} bytes")
+        super().__init__(f"'{var_num_cls.__qualname__}' cannot read beyond {var_num_cls._max_bytes} bytes")
 
 class VarNumOutOfRangeError(Exception):
     """An error indicating a value is outside the range of a :class:`VarNum`'s possible values.
@@ -110,7 +110,7 @@ class VarNumOutOfRangeError(Exception):
     """
 
     def __init__(self, var_num_cls, value):
-        super().__init__(f"Value '{value}' is out of the range of '{var_num_cls.__name__}'")
+        super().__init__(f"Value '{value}' is out of the range of '{var_num_cls.__qualname__}'")
 
 class VarNum(pak.Type):
     """A signed, variable-length integer.
@@ -145,7 +145,7 @@ class VarNum(pak.Type):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # Calcululate the maximum number of bytes to read
+        # Calculate the maximum number of bytes to read
         if cls.bits is not None:
             # Each byte has 7 value-bits, and 1 bit for whether to read the next byte.
             cls._max_bytes = math.ceil(cls.bits / 7)
