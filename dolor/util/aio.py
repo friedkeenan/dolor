@@ -2,6 +2,10 @@
 
 import asyncio
 
+__all__ = [
+    "AsyncValueHolder",
+]
+
 class AsyncValueHolder:
     """An asynchronous value holder.
 

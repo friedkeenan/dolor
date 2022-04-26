@@ -199,12 +199,15 @@ class Connection:
 
             try:
                 length = types.VarInt.unpack(length_data, ctx=self.ctx)
-            except types.VarNumBufferLengthError as e:
+
+            except types.VarNumBufferLengthError:
                 # Make sure we don't read the length forever.
-                raise e
-            except asyncio.CancelledError as e:
+                raise
+
+            except asyncio.CancelledError:
                 # Make sure we can be cancelled.
-                raise e
+                raise
+
             except Exception:
                 # If we fail to read a VarInt, read the next byte and try again.
                 continue
@@ -213,6 +216,7 @@ class Connection:
 
         try:
             data = await self.reader.readexactly(length)
+
         except asyncio.IncompleteReadError:
             self.close()
             await self.wait_closed()
@@ -221,11 +225,11 @@ class Connection:
 
         data = await self._decompressed_file_object(data)
 
-        id         = Packet.unpack_id(data)
-        packet_cls = self._packet_for_id(id, self._available_packets, ctx=self.ctx)
+        packet_id  = Packet.unpack_id(data, ctx=self.ctx)
+        packet_cls = self._packet_for_id(packet_id, self._available_packets, ctx=self.ctx)
 
         if packet_cls is None:
-            packet_cls = GenericPacketWithID(id)
+            packet_cls = GenericPacketWithID(packet_id)
 
         return packet_cls.unpack(data, ctx=self.ctx)
 
@@ -283,17 +287,17 @@ class Connection:
     async def read_packet(self, packet_to_read):
         """Reads a specific type of :class:`.Packet` from the incoming packets.
 
-        Requires :meth:`continuously_read_incoming_packets` to be iterated over.
+        Requires :meth:`continuously_read_packets` to be iterated over.
 
         Parameters
         ----------
-        packet_to_read : subclass of :class:`.Packet`
-            The type of the :class:`.Packet` to read.
+        packet_to_read : subclass of :class:`~.Packet`
+            The type of the :class:`~.Packet` to read.
 
         Returns
         -------
-        :class:`.Packet` or ``None``
-            The specified incoming :class:`.Packet`.
+        :class:`~.Packet` or ``None``
+            The specified incoming :class:`~.Packet`.
 
             Returns ``None`` when the :class:`Connection` is closed.
         """
