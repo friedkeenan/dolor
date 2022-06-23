@@ -20,6 +20,8 @@ def test_var_int():
         (2**31 - 1, b"\xFF\xFF\xFF\xFF\x07"),
         (-1,        b"\xFF\xFF\xFF\xFF\x0F"),
         (-2**31,    b"\x80\x80\x80\x80\x08"),
+
+        static_size = None,
     )
 
     with pytest.raises(types.VarNumBufferLengthError):
@@ -46,6 +48,8 @@ def test_var_long():
         (2**63 - 1, b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x7F"),
         (-1,        b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"),
         (-2**63,    b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"),
+
+        static_size = None,
     )
 
     with pytest.raises(types.VarNumBufferLengthError):
@@ -69,6 +73,8 @@ def test_angle():
         (math.tau * 5 / 8, b"\xA0"),
         (math.tau * 6 / 8, b"\xC0"),
         (math.tau * 7 / 8, b"\xE0"),
+
+        static_size = 1,
     )
 
     # These must be checked outside the above call since

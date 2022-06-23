@@ -209,6 +209,7 @@ class VarLong(VarNum):
 class Angle(pak.Type):
     """An angle whose value is in radians."""
 
+    _size    = 1
     _default = 0.0
 
     @classmethod

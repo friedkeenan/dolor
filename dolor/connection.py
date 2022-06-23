@@ -225,11 +225,11 @@ class Connection:
 
         data = await self._decompressed_file_object(data)
 
-        packet_id  = Packet.unpack_id(data, ctx=self.ctx)
-        packet_cls = self._packet_for_id(packet_id, self._available_packets, ctx=self.ctx)
+        packet_header = Packet.Header.unpack(data, ctx=self.ctx)
+        packet_cls    = self._packet_for_id(packet_header.id, self._available_packets, ctx=self.ctx)
 
         if packet_cls is None:
-            packet_cls = GenericPacketWithID(packet_id)
+            packet_cls = GenericPacketWithID(packet_header.id)
 
         return packet_cls.unpack(data, ctx=self.ctx)
 

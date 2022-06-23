@@ -141,5 +141,7 @@ def test_load_translations(tmp_path):
 test_chat_type = pak.test.assert_type_marshal_func(
     types.Chat,
 
-    (types.Chat.Chat("test"), b'\x0F{"text":"test"}')
+    (types.Chat.Chat("test"), b'\x0F{"text":"test"}'),
+
+    static_size = None,
 )

@@ -12,6 +12,8 @@ __all__ = [
 class UUIDString(pak.Type):
     """A UUID parsed from a :class:`~.String` representation."""
 
+    # Length of string representation plus length byte.
+    _size    = 36 + 1
     _default = uuid.UUID(int=0)
 
     _string_type = String(36)

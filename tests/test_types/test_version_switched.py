@@ -21,7 +21,21 @@ def test_version_switched():
         (2**7 - 1, b"\x7f"),
         (2**7,     b"\x80\x01"),
 
-        ctx = ctx
+        static_size = None,
+        ctx         = ctx,
+    )
+
+    dynamic_size_switched_type = pak.Type({
+        "1.12.2": types.UnsignedByte,
+    })
+
+    pak.test.assert_type_marshal(
+        dynamic_size_switched_type,
+
+        (0, b"\x00"),
+
+        static_size = 1,
+        ctx         = ctx,
     )
 
 def test_typelike_values():
@@ -37,5 +51,6 @@ def test_typelike_values():
 
         (None, b""),
 
-        ctx = ctx,
+        static_size = 0,
+        ctx         = ctx,
     )

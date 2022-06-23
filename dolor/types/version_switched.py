@@ -46,8 +46,8 @@ class VersionSwitchedType(pak.Type):
         return pak.Type(cls._switcher[ctx.version])
 
     @classmethod
-    def _size(cls, *, ctx):
-        return cls.underlying_type(ctx=ctx).size(ctx=ctx)
+    def _size(cls, value, *, ctx):
+        return cls.underlying_type(ctx=ctx).size(value, ctx=ctx)
 
     @classmethod
     def _default(cls, *, ctx):

@@ -13,7 +13,9 @@ def test_string():
         ("a" * (2**7 - 1), b"\x7F"     + b"a" * (2**7 - 1)),
         ("a" * (2**7 - 0), b"\x80\x01" + b"a" * (2**7 - 0)),
 
-        ("a" * 32767, b"\xFF\xFF\x01" + b"a" * 32767)
+        ("a" * 32767, b"\xFF\xFF\x01" + b"a" * 32767),
+
+        static_size = None,
     )
 
     with pytest.raises(types.StringLengthError, match="Invalid data length"):
@@ -33,7 +35,9 @@ def test_called_string():
         small_string,
 
         ("",     b"\x00"),
-        ("Test", b"\x04Test")
+        ("Test", b"\x04Test"),
+
+        static_size = None,
     )
 
     with pytest.raises(types.StringLengthError, match="Invalid data length"):
@@ -52,6 +56,8 @@ test_json = pak.test.assert_type_marshal_func(
     ({}, b"\x02{}"),
 
     ({"key": "value", "other key": "other value"}, b'\x29{"key":"value","other key":"other value"}'),
+
+    static_size = None,
 )
 
 def test_structured_json():
@@ -66,6 +72,8 @@ def test_structured_json():
         TestStructured,
 
         (structured_type(test=1), b'\x0A{"test":1}'),
+
+        static_size = None,
     )
 
     class TestConversion(types.StructuredJSON):
@@ -77,6 +85,8 @@ def test_structured_json():
         TestConversion,
 
         (conversion_type(test=structured_type(test=1)), b'\x13{"test":{"test":1}}'),
+
+        static_size = None,
     )
 
     class TestDefault(types.StructuredJSON):
@@ -94,7 +104,9 @@ def test_identifier():
     pak.test.assert_type_marshal(
         types.Identifier,
 
-        (test_id, b"\x0Fminecraft:stone")
+        (test_id, b"\x0Fminecraft:stone"),
+
+        static_size = None,
     )
 
     with pytest.raises(ValueError, match="Invalid"):

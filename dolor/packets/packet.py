@@ -41,8 +41,19 @@ class PacketContext(pak.PacketContext):
     def __hash__(self):
         return hash(self.version)
 
-class Packet(pak.Packet, id_type=types.VarInt):
+class Packet(pak.Packet):
     """A Minecraft packet."""
+
+    class Header(pak.Packet.Header):
+        # Theoretically we could have more fields
+        # in the header, and it would be "fine".
+        # However, for Minecraft's protocol, I find
+        # that conceptually the packet header only
+        # contains the ID of the packet. Additionally
+        # this makes testing packet marshaling easier.
+        # May be something to consider more in the future.
+
+        id: types.VarInt
 
 class GenericPacket(Packet):
     """A generic Minecraft :class:`Packet`."""
