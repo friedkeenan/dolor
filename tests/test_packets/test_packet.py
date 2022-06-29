@@ -15,12 +15,12 @@ def test_packet():
 
         attr: types.String
 
-    # Don't use 'pak.test.assert_packet_marshal' to
+    # Don't use 'pak.test.packet_behavior' to
     # make sure packing IDs work as expected.
     assert TestPacket(attr="test").pack() == b"\x01\x04test"
     assert TestPacket.unpack(b"\x04test") == TestPacket(attr="test")
 
-    pak.test.assert_packet_marshal(
+    pak.test.packet_behavior(
         (TestPacket(attr="test"), b"\x01\x04test"),
     )
 
@@ -29,7 +29,7 @@ def test_packet():
 
         attr: types.String
 
-    pak.test.assert_packet_marshal(
+    pak.test.packet_behavior(
         (TestLargeID(attr="test"), b"\x80\x01\x04test"),
     )
 
@@ -39,6 +39,6 @@ def test_generic_packet():
     # Test caching
     assert GenericPacketWithID(1) is generic_cls
 
-    pak.test.assert_packet_marshal(
+    pak.test.packet_behavior(
         (generic_cls(data=b"test"), b"\x01test"),
     )

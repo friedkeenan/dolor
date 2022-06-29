@@ -2,7 +2,7 @@ import pak
 
 from dolor import *
 
-test_handshake = pak.test.assert_packet_marshal_func(
+test_handshake = pak.test.packet_behavior_func(
     (
         serverbound.HandshakePacket(
             protocol       = 340,

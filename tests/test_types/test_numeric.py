@@ -9,7 +9,7 @@ from dolor import *
 # testing the library when that is not our responsibility.
 
 def test_var_int():
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         types.VarInt,
 
         (0,         b"\x00"),
@@ -22,6 +22,7 @@ def test_var_int():
         (-2**31,    b"\x80\x80\x80\x80\x08"),
 
         static_size = None,
+        default     = 0,
     )
 
     with pytest.raises(types.VarNumBufferLengthError):
@@ -37,7 +38,7 @@ def test_var_int():
         types.VarInt.pack(None)
 
 def test_var_long():
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         types.VarLong,
 
         (0,         b"\x00"),
@@ -50,6 +51,7 @@ def test_var_long():
         (-2**63,    b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"),
 
         static_size = None,
+        default     = 0,
     )
 
     with pytest.raises(types.VarNumBufferLengthError):
@@ -62,7 +64,7 @@ def test_var_long():
         types.VarLong.pack(-2**63 - 1)
 
 def test_angle():
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         types.Angle,
 
         (math.tau * 0 / 8, b"\x00"),
@@ -75,6 +77,7 @@ def test_angle():
         (math.tau * 7 / 8, b"\xE0"),
 
         static_size = 1,
+        default     = 0.0,
     )
 
     # These must be checked outside the above call since

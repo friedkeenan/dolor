@@ -138,10 +138,11 @@ def test_load_translations(tmp_path):
 
     assert chat.flatten() == "Test message"
 
-test_chat_type = pak.test.assert_type_marshal_func(
+test_chat_type = pak.test.type_behavior_func(
     types.Chat,
 
     (types.Chat.Chat("test"), b'\x0F{"text":"test"}'),
 
     static_size = None,
+    default     = types.Chat.Chat(""),
 )

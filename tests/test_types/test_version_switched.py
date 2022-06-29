@@ -13,7 +13,7 @@ def test_version_switched():
 
     ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         switched_type,
 
         (0,        b"\x00"),
@@ -22,19 +22,21 @@ def test_version_switched():
         (2**7,     b"\x80\x01"),
 
         static_size = None,
+        default     = 0,
         ctx         = ctx,
     )
 
-    dynamic_size_switched_type = pak.Type({
+    static_size_switched_type = pak.Type({
         "1.12.2": types.UnsignedByte,
     })
 
-    pak.test.assert_type_marshal(
-        dynamic_size_switched_type,
+    pak.test.type_behavior(
+        static_size_switched_type,
 
         (0, b"\x00"),
 
         static_size = 1,
+        default     = 0,
         ctx         = ctx,
     )
 
@@ -46,11 +48,12 @@ def test_typelike_values():
 
     ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         switched_type,
 
         (None, b""),
 
         static_size = 0,
+        default     = None,
         ctx         = ctx,
     )

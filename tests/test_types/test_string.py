@@ -4,7 +4,7 @@ import pytest
 from dolor import *
 
 def test_string():
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         types.String,
 
         ("",     b"\x00"),
@@ -16,6 +16,7 @@ def test_string():
         ("a" * 32767, b"\xFF\xFF\x01" + b"a" * 32767),
 
         static_size = None,
+        default     = "",
     )
 
     with pytest.raises(types.StringLengthError, match="Invalid data length"):
@@ -31,13 +32,14 @@ def test_string():
 def test_called_string():
     small_string = types.String(4)
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         small_string,
 
         ("",     b"\x00"),
         ("Test", b"\x04Test"),
 
         static_size = None,
+        default     = "",
     )
 
     with pytest.raises(types.StringLengthError, match="Invalid data length"):
@@ -50,7 +52,7 @@ def test_called_string():
 
         small_string.pack("a" * invalid_string_length)
 
-test_json = pak.test.assert_type_marshal_func(
+test_json = pak.test.type_behavior_func(
     types.JSON,
 
     ({}, b"\x02{}"),
@@ -58,6 +60,7 @@ test_json = pak.test.assert_type_marshal_func(
     ({"key": "value", "other key": "other value"}, b'\x29{"key":"value","other key":"other value"}'),
 
     static_size = None,
+    default     = {},
 )
 
 def test_structured_json():
@@ -68,12 +71,13 @@ def test_structured_json():
     assert structured_type is TestStructured.TestStructured
     assert issubclass(structured_type, util.StructuredDict)
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         TestStructured,
 
         (structured_type(test=1), b'\x0A{"test":1}'),
 
         static_size = None,
+        default     = pak.test.NO_DEFAULT,
     )
 
     class TestConversion(types.StructuredJSON):
@@ -81,12 +85,13 @@ def test_structured_json():
 
     conversion_type = TestConversion.value_type()
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         TestConversion,
 
         (conversion_type(test=structured_type(test=1)), b'\x13{"test":{"test":1}}'),
 
         static_size = None,
+        default     = pak.test.NO_DEFAULT,
     )
 
     class TestDefault(types.StructuredJSON):
@@ -101,12 +106,13 @@ def test_identifier():
 
     assert types.Identifier.Identifier(test_id) == test_id
 
-    pak.test.assert_type_marshal(
+    pak.test.type_behavior(
         types.Identifier,
 
         (test_id, b"\x0Fminecraft:stone"),
 
         static_size = None,
+        default     = pak.test.NO_DEFAULT,
     )
 
     with pytest.raises(ValueError, match="Invalid"):
