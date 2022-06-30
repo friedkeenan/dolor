@@ -7,7 +7,6 @@ import pak
 
 from .versions import Version
 from .packets import (
-    PacketContext,
     Packet,
     ServerboundPacket,
     ClientboundPacket,
@@ -37,7 +36,7 @@ class Connection:
 
     Attributes
     ----------
-    ctx : :class:`~.PacketContext`
+    ctx : :class:`.Packet.Context`
         The context for packets sent to and received by the :class:`Connection`.
     compression_threshold : :class:`int`
         The maximum size of a packet before it is compressed.
@@ -55,7 +54,7 @@ class Connection:
             clientbound: ClientboundPacket,
         }[bound]
 
-        self.ctx   = PacketContext(version)
+        self.ctx   = Packet.Context(version)
         self.state = ConnectionState.Handshaking
 
         self.disable_compression()
@@ -73,7 +72,7 @@ class Connection:
 
     @version.setter
     def version(self, value):
-        self.ctx = PacketContext(value)
+        self.ctx = Packet.Context(value)
 
     @property
     def state(self):

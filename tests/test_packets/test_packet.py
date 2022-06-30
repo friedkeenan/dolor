@@ -3,11 +3,14 @@ import pak
 from dolor import *
 
 def test_packet_context():
-    ctx = PacketContext("1.12.2")
+    ctx = Packet.Context("1.12.2")
 
-    assert ctx == PacketContext(340)
+    assert ctx == Packet.Context(340)
 
-    assert hash(ctx) == hash(PacketContext("1.12.2"))
+    assert hash(ctx) == hash(Packet.Context("1.12.2"))
+
+    # Test that you can default construct 'Packet.Context'.
+    Packet.Context()
 
 def test_packet():
     class TestPacket(Packet):

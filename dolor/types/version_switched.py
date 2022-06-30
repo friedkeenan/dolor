@@ -50,6 +50,10 @@ class VersionSwitchedType(pak.Type):
         return cls.underlying_type(ctx=ctx).size(value, ctx=ctx)
 
     @classmethod
+    def _alignment(cls, *, ctx):
+        return cls.underlying_type(ctx=ctx).alignment(ctx=ctx)
+
+    @classmethod
     def _default(cls, *, ctx):
         return cls.underlying_type(ctx=ctx).default(ctx=ctx)
 

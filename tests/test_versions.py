@@ -62,7 +62,7 @@ def test_switcher_dynamic_value():
             "1.12.2": 1
         }
 
-    ctx = PacketContext("1.12.2")
+    ctx = Packet.Context("1.12.2")
 
     assert TestPacket.id(ctx=ctx) == 1
 
@@ -71,4 +71,4 @@ def test_switcher_dynamic_value():
             "1.12.2": 2
         }
 
-    assert TestType.default(ctx=pak.TypeContext(ctx=ctx)) == 2
+    assert TestType.default(ctx=pak.Type.Context(ctx=ctx)) == 2

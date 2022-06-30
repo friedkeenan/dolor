@@ -11,7 +11,7 @@ def test_version_switched():
 
     assert issubclass(switched_type, types.VersionSwitchedType)
 
-    ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
+    ctx = pak.Type.Context(ctx=Packet.Context("1.12.2"))
 
     pak.test.type_behavior(
         switched_type,
@@ -36,6 +36,7 @@ def test_version_switched():
         (0, b"\x00"),
 
         static_size = 1,
+        alignment   = 1,
         default     = 0,
         ctx         = ctx,
     )
@@ -46,7 +47,7 @@ def test_typelike_values():
         "1.12.2": None,
     })
 
-    ctx = pak.TypeContext(ctx=PacketContext("1.12.2"))
+    ctx = pak.Type.Context(ctx=Packet.Context("1.12.2"))
 
     pak.test.type_behavior(
         switched_type,

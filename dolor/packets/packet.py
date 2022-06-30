@@ -7,7 +7,6 @@ from .. import types
 from ..versions import Version
 
 __all__ = [
-    "PacketContext",
     "Packet",
     "GenericPacket",
     "GenericPacketWithID",
@@ -20,29 +19,31 @@ __all__ = [
     "PlayPacket",
 ]
 
-class PacketContext(pak.PacketContext):
-    """The context for a :class:`Packet`.
-
-    Parameters
-    ----------
-    version : versionlike
-        The :class:`~.Version` the :class:`Packet` is for.
-    """
-
-    def __init__(self, version):
-        self.version = Version(version)
-
-    def __eq__(self, other):
-        if not isinstance(other, PacketContext):
-            return NotImplemented
-
-        return self.version == other.version
-
-    def __hash__(self):
-        return hash(self.version)
-
 class Packet(pak.Packet):
     """A Minecraft packet."""
+
+    class Context(pak.Packet.Context):
+        """The context for a :class:`Packet`.
+
+        Parameters
+        ----------
+        version : versionlike
+            The :class:`~.Version` the :class:`Packet` is for.
+        """
+
+        def __init__(self, version=Version.latest()):
+            self.version = Version(version)
+
+            super().__init__()
+
+        def __eq__(self, other):
+            if not isinstance(other, Packet.Context):
+                return NotImplemented
+
+            return self.version == other.version
+
+        def __hash__(self):
+            return hash(self.version)
 
     class Header(pak.Packet.Header):
         # Theoretically we could have more fields
