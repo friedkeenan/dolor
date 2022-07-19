@@ -1,8 +1,7 @@
 import inspect
 import zlib
+import pak
 import pytest
-
-from ..util import ByteStream
 
 from dolor import *
 
@@ -14,8 +13,8 @@ __all__ = [
 class ClientTest(Client):
     received_data    = None
 
-    reader_cls = ByteStream
-    writer_cls = ByteStream
+    reader_cls = pak.io.ByteStreamReader
+    writer_cls = pak.io.ByteStreamWriter
 
     def __init__(self, address="test_address", *args, version=Version.latest(), **kwargs):
         super().__init__(address, *args, version=version, **kwargs)
@@ -29,7 +28,7 @@ class ClientTest(Client):
 
     @property
     def sent_data(self):
-        return self.writer.data
+        return self.writer.written_data
 
     def pack_packets(self, iterable):
         # Handle compression when a 'SetCompressionPacket' is encountered.

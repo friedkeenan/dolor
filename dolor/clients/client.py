@@ -99,9 +99,9 @@ class Client(Connection, pak.AsyncPacketHandler):
         This allows listening to outgoing :class:`~.Packet`\s.
         """
 
-        await self._listen_to_packet(packet, outgoing=True)
+        await super().write_packet_instance(packet)
 
-        return await super().write_packet_instance(packet)
+        await self._listen_to_packet(packet, outgoing=True)
 
     async def open_streams(self):
         """Opens the input and output streams for the :class:`Client`.

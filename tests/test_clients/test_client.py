@@ -74,9 +74,7 @@ class WritePacketTest(Client):
     received_data = b""
 
     async def on_start(self):
-        assert await self.write_packet(GenericPacketWithID(0x69), data=b"test") == (
-            b"\x05" + b"\x69" + b"test"
-        )
+        await self.write_packet(GenericPacketWithID(0x69), data=b"test")
 
         assert self.sent_data == (
             b"\x05" + b"\x69" + b"test"
