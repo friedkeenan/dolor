@@ -1,8 +1,9 @@
-__pycache__
-build
-dist
+__pycache__/
+build/
+.pytest_cache/
+dist/
 *.egg-info
 
-config.py
-en_us.json
-favicon.png
+.coverage
+
+en_us.*

@@ -1,138 +1,302 @@
-"""String-related types."""
+"""Types relating to strings."""
 
+import collections
+import dataclasses
 import json
+import pak
 
-from .. import util
-from .type import Type
 from .numeric import VarInt
-from .util import prepare_types
+from .. import util
 
-class String(Type):
-    """A string.
+__all__ = [
+    "StringLengthError",
+    "String",
+    "JSON",
+    "StructuredJSON",
+    "Identifier",
+]
+
+class StringLengthError(Exception):
+    """An error indicating an invalid length of a :class:`String`.
+
+    Parameters
+    ----------
+    string_cls : subclass of :class:`String`
+        The subclass for which the error was raised.
+    length_type : :class:`str`
+        The type of length that is invalid.
+
+        ``"data"`` for when the length of the data is invalid,
+        ``"string"`` for when the length of the decoded string is invalid.
+    invalid_length : :class:`int`
+        The invalid length for which the error was raised.
+    """
+
+    def __init__(self, string_cls, length_type, invalid_length):
+        super().__init__(
+            f"Invalid {length_type} length ({invalid_length}) for String with max length {string_cls.max_length}"
+        )
+
+class String(pak.Type):
+    """A string of characters.
 
     Parameters
     ----------
     max_length : :class:`int`
-        The maximum length of the string. By default ``32767``.
-    prefix : subclass of :class:`~.Type`, optional
-        The type at the start of the data that
-        tells how many bytes to read to get the
-        string data. By default :class:`~.VarInt`.
-    encoding : :class:`str`, optional
-        What encoding to use for parsing the string data.
+        The maximum length of the string.
+
+        If exceeded, a :exc:`StringLengthError` is raised.
+
+        By default ``32767``.
+    prefix : typelike
+        The type at the beginning of the raw data representing
+        the length of the string in bytes.
+
+        By default :class:`types.VarInt <.VarInt>`.
+    encoding : :class:`str`
+        The encoding to use for the string.
+
         By default ``"utf-8"``.
     """
 
-    max_length = 32767
-    prefix     = VarInt
-    encoding   = "utf-8"
-
     _default = ""
 
+    prefix     = VarInt
+    encoding   = "utf-8"
+    max_length = 32767
+
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         length = cls.prefix.unpack(buf, ctx=ctx)
 
         if length > cls.max_length * 4:
-            raise ValueError(f"Invalid data length ({length}) for String({cls.max_length})")
+            raise StringLengthError(cls, "data", length)
 
-        ret = buf.read(length).decode(cls.encoding)
+        str_data = buf.read(length).decode(cls.encoding)
+        str_len  = len(str_data)
 
-        if len(ret) > cls.max_length:
-            raise ValueError(f"Invalid character length ({len(ret)}) for String({cls.max_length})")
+        if str_len > cls.max_length:
+            raise StringLengthError(cls, "string", str_len)
 
-        return ret
-
-    @classmethod
-    def _pack(cls, value, *, ctx=None):
-        if len(value) > cls.max_length:
-            raise ValueError(f"Invalid character length ({len(value)}) for String({cls.max_length})")
-
-        data = value.encode(cls.encoding)
-        if len(data) > cls.max_length * 4:
-            raise ValueError(f"Invalid data length ({len(data)}) for String({cls.max_length})")
-
-        return cls.prefix.pack(len(data), ctx=ctx) + data
+        return str_data
 
     @classmethod
-    @prepare_types
-    def _call(cls, max_length, *, prefix: Type = None, encoding=None):
-        prefix = util.default(prefix, cls.prefix)
+    def _pack(cls, value, *, ctx):
+        value_len = len(value)
 
-        encoding = util.default(encoding, cls.encoding)
+        if value_len > cls.max_length:
+            raise StringLengthError(cls, "string", value_len)
 
-        return cls.make_type(f"String({max_length})",
+        data     = value.encode(cls.encoding)
+        data_len = len(data)
+
+        if data_len > cls.max_length * 4:
+            raise StringLengthError(cls, "data", data_len)
+
+        return cls.prefix.pack(data_len, ctx=ctx) + data
+
+    @classmethod
+    @pak.Type.prepare_types
+    def _call(cls, max_length, *, prefix: pak.Type = None, encoding=None):
+        return cls.make_type(
+            f"String({max_length})",
+
             max_length = max_length,
-            prefix     = prefix,
-            encoding   = encoding,
+            prefix     = util.default(prefix,   cls.prefix),
+            encoding   = util.default(encoding, cls.encoding),
         )
 
-class Json(Type):
+class JSON(pak.Type):
     """JSON data.
 
-    Wraps :func:`json.loads` and `json.dumps` and
-    :class:`String`.
+    Wraps :func:`json.loads` and :func:`json.dumps`
+    for unpacking and packing respectively.
     """
 
     _default = {}
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return json.loads(String.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
+        # Specify separators to get as compact as possible.
         return String.pack(json.dumps(value, separators=(",", ":")), ctx=ctx)
 
-class Identifier(Type):
-    """An identifier for a resource location."""
+class StructuredJSON(pak.Type):
+    r"""Structured JSON data.
+
+    :meta no-undoc-members:
+
+    .. seealso::
+
+        :class:`util.StructuredDict <.StructuredDict>`
+
+    The annotations of subclasses should be made in the fashion of
+    :mod:`dataclasses`, and are applied to the :class:`util.StructuredDict <.StructuredDict>`
+    value type.
+
+    When unpacking, any :class:`dict` values in the JSON data will be passed to the
+    constructor of the corresponding value of the annotation, allowing you to use
+    :class:`~.util.StructuredDict`\s as annotation values.
+
+    When packing, for any values of the object to pack which have an :meth:`as_dict`
+    method, said method will be used to pack the value into a :class:`dict`. If the
+    value does not have that method, then if it is a mapping, it will be passed to
+    :class:`dict` to pack it into a :class:`dict`.
+
+    The value type of the resulting :class:`StructuredJSON` subclass can be accessed
+    through either the :meth:`value_type` method or as an attribute of the same name
+    as the subclass.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> class Example(dolor.types.StructuredJSON):
+    ...     key: int
+    ...
+    >>> Example.value_type() is Example.Example
+    True
+    >>> Example.Example(key=1)
+    Example(key=1)
+    """
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # TODO: In Python 3.10+ we can use 'inspect.getannotations'.
+        annotations = getattr(cls, "__annotations__", {})
+
+        # Make sure we propagate on the annotation fields.
+        sentinel = pak.util.UniqueSentinel()
+        attrs    = {}
+        for key in annotations.keys():
+            attr = getattr(cls, key, sentinel)
+
+            if attr is not sentinel:
+                attrs[key] = attr
+
+        # Set value type as an attribute with the same name.
+        setattr(cls, cls.__name__, cls.make_type(
+            cls.__name__,
+            (util.StructuredDict,),
+
+            __annotations__ = annotations,
+            __qualname__    = f"{cls.__qualname__}.{cls.__name__}",
+
+            **attrs,
+        ))
+
+    def __set__(self, instance, value):
+        if not isinstance(value, self.value_type()):
+            value = self.value_type(value)
+
+        super().__set__(instance, value)
+
+    @classmethod
+    def value_type(cls):
+        """A generic way to get the value type of a :class:`StructuredJSON`."""
+
+        return getattr(cls, cls.__name__)
+
+    @classmethod
+    def _default(cls, *, ctx):
+        return cls.value_type()()
+
+    @classmethod
+    def _unpack(cls, buf, *, ctx):
+        value = JSON.unpack(buf, ctx=ctx)
+
+        value_type = cls.value_type()
+
+        for key in list(value.keys()):
+            value_for_key = value[key]
+            if isinstance(value_for_key, dict):
+                type_for_key = value_type.__dataclass_fields__[key].type
+                value[key]   = type_for_key(value_for_key)
+
+        return value_type(value)
+
+    @classmethod
+    def _pack(cls, value, *, ctx):
+        value = dict(value)
+
+        for key in list(value.keys()):
+            value_for_key = value[key]
+
+            as_dict_method = getattr(value_for_key, "as_dict", None)
+            if as_dict_method is not None:
+                value[key] = as_dict_method()
+            elif isinstance(value_for_key, collections.abc.Mapping):
+                value[key] = dict(value_for_key)
+
+        return JSON.pack(value, ctx=ctx)
+
+class Identifier(pak.Type):
+    """An identifier for a resource location.
+
+    .. note::
+
+        This type has no default value.
+    """
 
     class Identifier:
         """The value type of :class:`~.string.Identifier`.
 
         Parameters
         ----------
-        id : :class:`str`, optional
-            The namespaced location.
+        id : :class:`str` or :class:`Identifier.Identifier`
+            The namespaced resource location.
 
-            See https://wiki.vg/Protocol#Identifier for
-            details.
+            See https://wiki.vg/Protocol#Identifier for details.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If the identifier has more than one colon (``:``).
         """
 
-        def __init__(self, id=None):
-            if id is None:
-                self.namespace = None
-                self.name = None
+        def __init__(self, id):
+            if isinstance(id, Identifier.Identifier):
+                self.namespace = id.namespace
+                self.name      = id.name
             else:
-                parts = id.split(":")
+                components = id.split(":")
 
-                if len(parts) == 1:
+                # TODO: Use pattern matching when Python 3.9 support is dropped
+
+                num_components = len(components)
+
+                if num_components == 1:
                     self.namespace = "minecraft"
-                    self.name      = parts[0]
-                elif len(parts) == 2:
-                    self.namespace = parts[0]
-                    self.name      = parts[1]
+                    self.name      = components[0]
+                elif num_components == 2:
+                    self.namespace, self.name = components
                 else:
-                    raise ValueError("Invalid identifier")
+                    raise ValueError(f"Invalid Identifier: {id}")
+
+        def __eq__(self, other):
+            return (self.namespace, self.name) == (other.namespace, other.name)
+
+        def __hash__(self):
+            return hash((self.namespace, self.name))
 
         def __str__(self):
             return f"{self.namespace}:{self.name}"
 
         def __repr__(self):
-            return f'{type(self).__name__}("{self}")'
-
-    _default = Identifier()
+            return f"{type(self).__name__}({self})"
 
     def __set__(self, instance, value):
-        if not isinstance(value, self.Identifier):
-            value = self.Identifier(value)
-
-        super().__set__(instance, value)
+        # Setting the value to a 'str' will convert it to our value type.
+        super().__set__(instance, type(self).Identifier(value))
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
+    def _unpack(cls, buf, *, ctx):
         return cls.Identifier(String.unpack(buf, ctx=ctx))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
+    def _pack(cls, value, *, ctx):
         return String.pack(str(value), ctx=ctx)

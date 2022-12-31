@@ -1,68 +1,55 @@
-"""Useful enums, mostly for packets."""
+"""Miscellaneous enums for Minecraft."""
 
 import enum
-
-from . import util
-
-class State(enum.Enum):
-    """The state used for packets.
-
-    Also used in :class:`~.HandshakePacket`.
-    """
-
-    Handshaking = 0
-    Status      = 1
-    Login       = 2
-    Play        = 3
+import pak
 
 class ChatPosition(enum.Enum):
-    """The position of a :class:`~dolor.packets.clientbound.play.misc.ChatMessagePacket`."""
+    """The position of a :class:`clientbound.ChatMessagePacket <.clientbound.play.misc.ChatMessagePacket>`."""
 
     Chat     = 0
     System   = 1
     GameInfo = 2
 
-class Action(enum.Enum):
-    """The action of a :class:`~.ClientStatusPacket`."""
-
-    Respawn      = 0
-    RequestStats = 1
-
 class GameMode(enum.Enum):
-    """A player's gamemode.
-
-    The `Hardcore*` enums are only used in older versions.
-
-    Used in :class:`~.JoinGamePacket` and :class:`~.RespawnPacket`.
-    """
+    """The game mode of a player."""
 
     Survival  = 0
     Creative  = 1
     Adventure = 2
     Spectator = 3
 
-    # Hardcore flag is bit 3, only used in older versions
-    HardcoreSurvival  = util.bit(3) | Survival
-    HardcoreCreative  = util.bit(3) | Creative
-    HardcoreAdventure = util.bit(3) | Adventure
-    HardcoreSpectator = util.bit(3) | Spectator
+    HardcoreSurvival  = pak.util.bit(3) | Survival
+    HardcoreCreative  = pak.util.bit(3) | Creative
+    HardcoreAdventure = pak.util.bit(3) | Adventure
+    HardcoreSpectator = pak.util.bit(3) | Spectator
 
-    Invalid = 255
+    def is_gamemode(self, mode):
+        return (self.value & 0b11) == mode.value
 
-class LegacyDimension(enum.Enum):
-    """A dimension. Only used in older versions."""
+    @property
+    def is_hardcore(self):
+        return (self.value & pak.util.bit(3)) != 0
 
-    Overworld =  0
+class Dimension(enum.Enum):
+    """A dimension within a world."""
+
     Nether    = -1
-    End       =  1
+    Overworld = 0
+    End       = 1
+
+class Difficulty(enum.Enum):
+    """The difficulty setting of Minecraft."""
+
+    Peaceful = 0
+    Easy     = 1
+    Normal   = 2
+    Hard     = 3
 
 class LevelType(enum.Enum):
-    """The level type of a world. Only used in older versions."""
+    """The type of generation of a world."""
 
     Default     = "default"
     Flat        = "flat"
     LargeBiomes = "largeBiomes"
     Amplified   = "amplified"
-    Customized  = "customized"
-    Buffet      = "buffet"
     Default_1_1 = "default_1_1"

@@ -1,137 +1,200 @@
-"""Types for numbers."""
+"""Numeric types.
+
+The names for these types are based on the names from https://wiki.vg/
+so that our :class:`~.Packet` definitions may use the same terminology,
+despite the imprecise nature of the names.
+
+All numeric types are big endian.
+"""
 
 import math
+import pak
 
-from .. import util
-from .type import Type
-from .misc import StructType
+__all__ = [
+    "Boolean",
+    "Byte",
+    "UnsignedByte",
+    "Short",
+    "UnsignedShort",
+    "Int",
+    "UnsignedInt",
+    "Long",
+    "UnsignedLong",
+    "Float",
+    "Double",
+    "VarNumBufferLengthError",
+    "VarNumOutOfRangeError",
+    "VarNum",
+    "VarInt",
+    "VarLong",
+    "Angle",
+]
 
-class Boolean(StructType):
-    """A boolean that corresponds to a single byte."""
+class Boolean(pak.Bool):
+    """A single byte truth-value."""
 
-    _default = False
-    fmt      = "?"
+    endian = ">"
 
-class Byte(StructType):
+class Byte(pak.Int8):
     """A signed 8-bit integer."""
 
-    _default = 0
-    fmt      = "b"
+    endian = ">"
 
-class UnsignedByte(StructType):
+class UnsignedByte(pak.UInt8):
     """An unsigned 8-bit integer."""
 
-    _default = 0
-    fmt      = "B"
+    endian = ">"
 
-class Short(StructType):
+class Short(pak.Int16):
     """A signed 16-bit integer."""
 
-    _default = 0
-    fmt      = "h"
+    endian = ">"
 
-class UnsignedShort(StructType):
-    """An unsigned 8-bit integer."""
+class UnsignedShort(pak.UInt16):
+    """An unsigned 16-bit integer."""
 
-    _default = 0
-    fmt      = "H"
+    endian = ">"
 
-class Int(StructType):
+class Int(pak.Int32):
     """A signed 32-bit integer."""
 
-    _default = 0
-    fmt      = "i"
+    endian = ">"
 
-class UnsignedInt(StructType):
+class UnsignedInt(pak.UInt32):
     """An unsigned 32-bit integer."""
 
-    _default = 0
-    fmt      = "I"
+    endian = ">"
 
-class Long(StructType):
+class Long(pak.Int64):
     """A signed 64-bit integer."""
 
-    _default = 0
-    fmt      = "q"
+    endian = ">"
 
-class UnsignedLong(StructType):
+class UnsignedLong(pak.UInt64):
     """An unsigned 64-bit integer."""
 
-    _default = 0
-    fmt      = "Q"
+    endian = ">"
 
-class Float(StructType):
+class Float(pak.Float32):
     """A 32-bit floating point value."""
 
-    _default = 0.0
-    fmt      = "f"
+    endian = ">"
 
-class Double(StructType):
+class Double(pak.Float64):
     """A 64-bit floating point value."""
 
-    _default = 0.0
-    fmt      = "d"
+    endian = ">"
 
-class VarNum(Type):
+class VarNumBufferLengthError(Exception):
+    """An error indicating the number of bytes read would exceed
+    the allowed storage of a :class:`VarNum`.
+
+    Parameters
+    ----------
+    var_num_cls : subclass of :class:`VarNum`
+        The subclass whose storage would be exceeded.
+    """
+
+    def __init__(self, var_num_cls):
+        super().__init__(f"'{var_num_cls.__qualname__}' cannot read beyond {var_num_cls._max_bytes} bytes")
+
+class VarNumOutOfRangeError(Exception):
+    """An error indicating a value is outside the range of a :class:`VarNum`'s possible values.
+
+    Parameters
+    ----------
+    var_num_cls : subclass of :class:`VarNum`
+        The subclass whose range ``value`` lies outside of.
+    value : :class:`int`
+        The value which exceeds the range.
+    """
+
+    def __init__(self, var_num_cls, value):
+        super().__init__(f"Value '{value}' is out of the range of '{var_num_cls.__qualname__}'")
+
+class VarNum(pak.Type):
     """A signed, variable-length integer.
 
     :meta no-undoc-members:
 
-    To read the value, a byte is read, where the
-    bottom 7 bits are a portion of the value, and
-    the top bit indicates whether to read another
-    byte and repeat the process.
+    Each byte of raw data contains 7 bits that contribute to the
+    value of the integer, and 1 bit that indicates whether to
+    read the next byte.
 
-    If the bytes read would exceed the number of
-    bytes needed to get the necessary bits (as
-    specified with the :attr:`bits` attribute),
-    then a :exc:`ValueError` will be raised. This
-    is done to prevent a DOS attack that sends
-    bytes that always have the top bit set, leading
-    to an infinite amount of bytes being read.
+    When unpacking, if the number of bytes read would exceed the
+    maximum number of bytes needed to read the specified :attr:`bits`,
+    then a :exc:`VarNumBufferLengthError` is raised. This stops data
+    from being read forever, potentially causing a denial of service.
+
+    When packing, if the value to pack is outside the range of possible
+    values for the specified :attr:`bits`, then a :exc:`VarNumOutOfRangeError`
+    is raised. This stops values from being sent which may not be
+    accurately received.
 
     Attributes
     ----------
     bits : :class:`int`
-        The maximum amount of bits before a
-        :exc:`ValueError` is raised.
+        The maximum number of bits the integer can contain.
     """
 
     _default = 0
-    bits     = None
+
+    bits = None
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
-        ret = 0
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
 
-        for i in range(1 + cls.bits // 8):
-            read = UnsignedByte.unpack(buf, ctx=ctx)
-            value = read & 0x7f
+        # Calculate the maximum number of bytes to read
+        if cls.bits is not None:
+            # Each byte has 7 value-bits, and 1 bit for whether to read the next byte.
+            cls._max_bytes = math.ceil(cls.bits / 7)
 
-            ret |= value << (7 * i)
-
-            if read & 0x80 == 0:
-                return util.to_signed(ret, bits=cls.bits)
-
-        raise ValueError(f"{cls.__name__} is too big")
+            cls._value_range = range(-pak.util.bit(cls.bits - 1), pak.util.bit(cls.bits - 1))
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
-        ret = b""
+    def _unpack(cls, buf, *, ctx):
+        num = 0
 
-        for i in range(1 + cls.bits // 8):
-            tmp = value & 0x7f
+        for i in range(cls._max_bytes):
+            read  = UnsignedByte.unpack(buf, ctx=ctx)
 
-            value = util.urshift(value, 7, bits=cls.bits)
+            # Get the bottom 7 bits
+            value = read & 0b01111111
+
+            num |= value << (7 * i)
+
+            # If the top bit is not set, return
+            if read & 0b10000000 == 0:
+                return pak.util.to_signed(num, bits=cls.bits)
+
+        raise VarNumBufferLengthError(cls)
+
+    @classmethod
+    def _pack(cls, value, *, ctx):
+        # If 'value' is not an 'int' then checking if it's contained will
+        # loop through the (very large) value range instead of just checking
+        # comparisons.
+        if not isinstance(value, int) or value not in cls._value_range:
+            raise VarNumOutOfRangeError(cls, value)
+
+        value = pak.util.to_unsigned(value, bits=cls.bits)
+
+        data = b""
+
+        while True:
+            # Get the bottom 7 bits.
+            to_write = value & 0b01111111
+
+            value >>= 7
             if value != 0:
-                tmp |= 0x80
+                # Set the top bit.
+                to_write |= 0b10000000
 
-            ret += UnsignedByte.pack(tmp, ctx=ctx)
+            data += UnsignedByte.pack(to_write, ctx=ctx)
 
             if value == 0:
-                return ret
-
-        raise ValueError(f"{cls.__name__} is too big")
+                return data
 
 class VarInt(VarNum):
     """A signed, variable-length 32-bit integer."""
@@ -143,18 +206,16 @@ class VarLong(VarNum):
 
     bits = 64
 
-class Angle(Type):
-    """Represents an angle.
+class Angle(pak.Type):
+    """An angle whose value is in radians."""
 
-    The value is in radians.
-    """
-
-    _default = 0
+    _size    = 1
+    _default = 0.0
 
     @classmethod
-    def _unpack(cls, buf, *, ctx=None):
-        return math.tau * UnsignedByte.unpack(buf) / 256
+    def _unpack(cls, buf, *, ctx):
+        return math.tau * (UnsignedByte.unpack(buf, ctx=ctx) / 256)
 
     @classmethod
-    def _pack(cls, value, *, ctx=None):
-        return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau))
+    def _pack(cls, value, *, ctx):
+        return UnsignedByte.pack(round(256 * (value % math.tau) / math.tau), ctx=ctx)

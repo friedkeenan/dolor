@@ -1,19 +1,30 @@
-from ...types import *
-from ..packet import *
+r""":class:`~.Packet`\s in the :attr:`.ConnectionState.Login` state."""
+
+import pak
+
+from ..packet import ServerboundPacket, LoginPacket
+
+from ... import types
+
+__all__ = [
+    "LoginStartPacket",
+    "EncryptionResponsePacket",
+]
 
 class LoginStartPacket(ServerboundPacket, LoginPacket):
+    """Sent by the :class:`~.Client` to begin logging in."""
+
     id = 0x00
 
-    name: String(16)
+    name: types.String(16)
 
 class EncryptionResponsePacket(ServerboundPacket, LoginPacket):
+    """Responds to a :class:`clientbound.EncryptionRequestPacket <.EncryptionRequestPacket>`.
+
+    After this is sent to the :class:`~.Server`, encryption is enabled for the :class:`~.Connection`.
+    """
+
     id = 0x01
 
-    shared_secret: RawByte[VarInt]
-    verify_token:  RawByte[VarInt]
-
-class LoginPluginResponsePacket(ServerboundPacket, LoginPacket):
-    id = 0x02
-
-    message_id: VarInt
-    data:       Optional(RawByte[None], Boolean)
+    encrypted_shared_secret: pak.RawByte[types.VarInt]
+    encrypted_verify_token:  pak.RawByte[types.VarInt]

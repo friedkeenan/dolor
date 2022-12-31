@@ -1,233 +1,302 @@
+"""Contains :class:`~.Client`."""
+
 import asyncio
-import aiohttp
 import time
+import pak
 from aioconsole import aprint
 
-from .. import enums
-from .. import util
-from .. import encryption
-from .. import connection
-from ..packet_handler import packet_listener, PacketHandler
-from ..versions import Version
-from ..types import Chat
-from ..packets import PacketContext, serverbound, clientbound
-from ..yggdrasil import AuthenticationToken
+from ..connection import Connection
+from ..packets import ConnectionState, clientbound, serverbound
 
-class Client(connection.Connection, PacketHandler):
-    session_server = "https://sessionserver.mojang.com/session/minecraft"
+from .. import types
 
-    def __init__(self, version, address, port=25565, *,
-        lang_file = None,
+__all__ = [
+    "Client",
+]
 
-        access_token = None,
-        client_token = None,
-        username     = None,
-        password     = None,
+class Client(Connection, pak.AsyncPacketHandler):
+    """A Minecraft client.
 
-        name = None,
+    Parameters
+    ----------
+    address : :class:`str`
+        The address of the :class:`~.Server` to connect to.
+    port : :class:`int`
+        The port of the :class:`~.Server` to connect to.
+    version : versionlike
+        The :class:`~.Version` for the :class:`Client`.
+    name : :class:`str` or ``None``
+        The name of the player.
+
+        If ``None``, then the player's name is gotten from
+        authentication if possible.
+
+        Upon a successful login, this attribute is updated
+        to the value of :attr:`clientbound.LoginSuccessPacket.username <.LoginSuccessPacket.username>`.
+    translations : pathlike or string file object or :class:`dict` or ``None``
+        If not ``None``, then passed to :meth:`types.Chat.Chat.load_translations <.Chat.Chat.load_translations>`.
+    """
+
+    def __init__(
+        self,
+        address,
+        port = 25565,
+        *,
+        version,
+        name         = None,
+        translations = None,
     ):
-        version  = Version(version, check_supported=True)
-        self.ctx = PacketContext(version)
+        # Cannot use 'super' here because of multiple inheritance with non-cooperating constructors.
+        Connection.__init__(self, clientbound, version=version)
+        pak.AsyncPacketHandler.__init__(self)
 
         self.address = address
         self.port    = port
 
-        self.authenticated = False
-        self.auth_token = AuthenticationToken(
-            access_token = access_token,
-            client_token = client_token,
-            username     = username,
-            password     = password,
-        )
-
         self.name = name
 
-        if lang_file is not None:
-            Chat.Chat.load_translations(lang_file)
+        if translations is not None:
+            types.Chat.Chat.load_translations(translations)
 
-        self.should_listen_sequentially = True
-        self.tasks = []
+        self._listen_sequentially = True
 
-        # TODO: Figure out a way to do this with super
-        connection.Connection.__init__(self, clientbound)
-        PacketHandler.__init__(self)
+    def register_packet_listener(self, listener, *packet_types, outgoing=False, **flags):
+        r"""Overrides :meth:`pak.AsyncPacketHandler.register_packet_listener`.
 
-    def register_packet_listener(self, *args, outgoing=False):
-        super().register_packet_listener(*args, outgoing=outgoing)
+        This adds the ``outgoing`` keyword argument to
+        check against for :class:`~.Packet` listeners.
 
-    def create_task(self, coro):
-        """Internal function used to ensure that all listeners complete."""
+        Parameters
+        ----------
+        listener : coroutine function
+            The :class:`~.Packet` listener.
+        *packet_types
+            The :class:`~.Packet`\s to listen to.
+        outgoing : :class:`bool`
+            Whether ``listener`` listens to outgoing :class:`~.Packet`\s,
+            i.e. those that are sent to the :class:`~.Server`.
+        **flags
+            Various other flags for :class:`~.Packet` listeners.
+        """
 
-        real_task = asyncio.create_task(coro)
-        self.tasks.append(real_task)
+        super().register_packet_listener(listener, *packet_types, outgoing=outgoing, **flags)
 
-        async def task():
-            try:
-                await real_task
-            finally:
-                self.tasks.remove(real_task)
+    async def _listen_to_packet(self, packet, **flags):
+        async with self.listener_task_group(listen_sequentially=self._listen_sequentially) as group:
+            for listener in self.listeners_for_packet(packet, **flags):
+                group.create_task(listener(packet))
 
-        return asyncio.create_task(task())
-
-    async def listen_to_packet(self, p, *, outgoing):
-        listeners = self.listeners_for_packet(self, p, outgoing=outgoing)
-
-        if self.should_listen_sequentially:
-            await asyncio.gather(*(x(p) for x in listeners))
-        else:
-            for func in listeners:
-                self.create_task(func(p))
-
-    async def write_packet(self, *args, **kwargs):
-        p = await super().write_packet(*args, **kwargs)
-
-        await self.listen_to_packet(p, outgoing=True)
-
-        return p
-
-    async def listen(self):
-        while not self.is_closing():
-            p = await self.read_packet()
-            if p is None:
-                break
-
-            await self.listen_to_packet(p, outgoing=False)
-
+    async def _listen_to_incoming_packets(self):
         try:
-            await asyncio.wait_for(asyncio.gather(*self.tasks), 1)
-        except asyncio.TimeoutError:
-            for task in self.tasks:
-                task.cancel()
+            async for packet in self.continuously_read_packets():
+                await self._listen_to_packet(packet, outgoing=False)
+        finally:
+            await self.end_listener_tasks()
 
-    async def on_start(self):
-        await self.login()
+    async def write_packet_instance(self, packet):
+        r"""Overrides :meth:`.Connection.write_packet_instance`.
+
+        This allows listening to outgoing :class:`~.Packet`\s.
+        """
+
+        await super().write_packet_instance(packet)
+
+        await self._listen_to_packet(packet, outgoing=True)
+
+    async def open_streams(self):
+        """Opens the input and output streams for the :class:`Client`.
+
+        Returns
+        -------
+        :class:`asyncio.StreamReader`
+            The asynchronous reader.
+        :class:`asyncio.StreamWriter`
+            The asynchronous writer.
+        """
+
+        return await asyncio.open_connection(self.address, self.port)
 
     async def startup(self):
-        self.reader, self.writer = await asyncio.open_connection(self.address, self.port)
+        """Called when the :class:`Client` is started.
+
+        Resets the :class:`Client` to its initial state and sets the
+        :attr:`reader <.Connection.reader>` and :attr:`writer <.Connection.writer>`
+        attributes using the output of :meth:`open_streams`.
+        """
+
+        self.state = ConnectionState.Handshaking
+        self.disable_compression()
+
+        self.reader, self.writer = await self.open_streams()
+
+    async def on_start(self):
+        """Called after :meth:`startup`.
+
+        By default calls :meth:`login`.
+        """
+
+        await self.login()
 
     async def start(self):
+        """Starts the :class:`Client`.
+
+        This should only be used if you're already in a coroutine.
+        Otherwise, you should use the :meth:`run` method.
+
+        This should not be overridden. Instead override the :meth:`startup`
+        and/or :meth:`on_start` methods.
+        """
+
         await self.startup()
 
         async with self:
             await self.on_start()
 
     def run(self):
-        try:
-            asyncio.run(self.start())
-        except KeyboardInterrupt:
-            self.close()
+        """Runs the :class:`Client`.
 
-    async def auth(self, **kwargs):
-        await self.auth_token.ensure(**kwargs)
-        self.authenticated = True
+        Calls :meth:`start` with :func:`asyncio.run`.
+        """
 
-        if self.name is None:
-            self.name = self.auth_token.profile.name
-
-    async def send_server_hash(self, server_hash):
-        async with aiohttp.ClientSession() as s:
-            async with s.post(f"{self.session_server}/join",
-                json = {
-                    "accessToken":     self.auth_token.access_token,
-                    "selectedProfile": self.auth_token.profile.id,
-                    "serverId":        server_hash,
-                },
-                headers = {"content-type": "application/json"},
-            ) as resp:
-                if resp.status != 204:
-                    raise ValueError(f"Invalid status code from session server: {resp.status}")
+        asyncio.run(self.start())
 
     async def status(self):
-        if self.current_state != enums.State.Handshaking:
-            raise ValueError(f"Invalid state: {self.current_state}")
+        """Gets the status of the :class:`~.Server` the :class:`Client` was directed at.
 
-        await self.write_packet(serverbound.HandshakePacket,
-            proto_version  = self.ctx.version.proto,
+        Returns
+        -------
+        :class:`clientbound.ResponsePacket.Response.Response <.ResponsePacket.Response.Response>`
+            The response from the :class:`~.Server`.
+        :class:`int`
+            The ping to the :class:`~.Server`, in milliseconds.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If the :class:`Client` is not in the :attr:`.ConnectionState.Handshaking` state.
+        :exc:`RuntimeError`
+            If the :class:`Client` cannot get the status of the :class:`~.Server`.
+        """
+
+        if self.state != ConnectionState.Handshaking:
+            raise ValueError(f"Invalid connection state for status: {self.state}")
+
+        await self.write_packet(
+            serverbound.HandshakePacket,
+
+            protocol       = self.version.protocol,
             server_address = self.address,
             server_port    = self.port,
-            next_state     = enums.State.Status,
+            next_state     = ConnectionState.Status,
         )
 
-        self.current_state = enums.State.Status
+        self.state = ConnectionState.Status
 
         await self.write_packet(serverbound.RequestPacket)
-        resp = await self.read_packet()
+        await self.write_packet(
+            serverbound.PingPacket,
 
-        await self.write_packet(serverbound.PingPacket,
-            payload = int(time.time() * 1000),
+            payload = int(time.time() * 1000)
         )
-        pong = await self.read_packet()
+
+        response = None
+        ping     = None
+
+        async for packet in self.continuously_read_packets():
+            if isinstance(packet, clientbound.ResponsePacket):
+                response = packet.response
+            elif isinstance(packet, clientbound.PongPacket):
+                ping = int(time.time() * 1000) - packet.payload
+
+            if response is not None and ping is not None:
+                break
 
         self.close()
 
-        return resp.response, int(time.time() * 1000) - pong.payload
+        # If packet reading prematurely stops, raise an error.
+        if response is None or ping is None:
+            raise RuntimeError("Could not get the status of the server")
+
+        return response, ping
 
     async def login(self):
-        if self.current_state != enums.State.Handshaking:
-            raise ValueError(f"Invalid state: {self.current_state}")
+        r"""Logs into the :class:`~.Server` and begins listening to incoming :class:`~.Packet`\s.
+
+        If the :class:`Client` has not been given authentication data, then
+        it may only connect to "offline" :class:`~.Server`\s and the
+        ``name`` parameter must be passed on construction.
+
+        Raises
+        ------
+        :exc:`ValueError`
+            If the :class:`Client` is not in the :attr:`.ConnectionState.Handshaking` state.
+        """
+
+        if self.state != ConnectionState.Handshaking:
+            raise ValueError(f"Invalid connection state for login: {self.state}")
 
         if self.name is None:
-            # If we don't have a name then we need to get it,
-            # so we can't just validate, we need to refresh.
-            await self.auth()
+            # TODO: Authentication.
+            raise NotImplementedError
 
-        self.should_listen_sequentially = True
+        # We do not want to read packets before handling a
+        # 'SetCompressionPacket' or 'EncryptionRequestPacket',
+        # as that would end up with reading the packets incorrectly.
+        self._listen_sequentially = True
 
-        await self.write_packet(serverbound.HandshakePacket,
-            proto_version  = self.ctx.version.proto,
+        await self.write_packet(
+            serverbound.HandshakePacket,
+
+            protocol       = self.version.protocol,
             server_address = self.address,
             server_port    = self.port,
-            next_state     = enums.State.Login,
+            next_state     = ConnectionState.Login,
         )
 
-        self.current_state = enums.State.Login
+        self.state = ConnectionState.Login
 
-        await self.write_packet(serverbound.LoginStartPacket,
+        await self.write_packet(
+            serverbound.LoginStartPacket,
+
             name = self.name,
         )
 
-        await self.listen()
+        await self._listen_to_incoming_packets()
 
-    # Default packet listeners
+    # Default packet listeners.
 
-    @packet_listener(clientbound.DisconnectLoginPacket, clientbound.DisconnectPlayPacket)
-    async def _on_disconnect(self, p):
-        await aprint("Disconnected:", p.reason.flatten())
+    @pak.packet_listener(clientbound.DisconnectPacket)
+    async def _on_disconnect(self, packet):
+        # TODO: Use aiologger?
+        await aprint("Disconnected:", packet.reason.flatten())
 
         self.close()
         await self.wait_closed()
 
-    @packet_listener(clientbound.EncryptionRequestPacket)
-    async def _on_encryption_request(self, p):
-        if not self.authenticated:
-            await self.auth(try_validate=True)
+    @pak.packet_listener(clientbound.EncryptionRequestPacket)
+    async def _on_encryption_request(self, packet):
+        # TODO: Encryption.
+        raise NotImplementedError
 
-        shared_secret = encryption.gen_shared_secret()
-        server_hash   = encryption.gen_server_hash(p.server_id, shared_secret, p.public_key)
+    @pak.packet_listener(clientbound.SetCompressionPacket)
+    async def _on_set_compression(self, packet):
+        self.compression_threshold = packet.threshold
 
-        await self.send_server_hash(server_hash)
+    @pak.packet_listener(clientbound.LoginSuccessPacket)
+    async def _on_login_success(self, packet):
+        # Update our name to what the server tells us.
+        self.name = packet.username
 
-        enc_secret, enc_token = encryption.encrypt_secret_and_token(p.public_key, shared_secret, p.verify_token)
+        self.state = ConnectionState.Play
 
-        await self.write_packet(serverbound.EncryptionResponsePacket,
-            shared_secret = enc_secret,
-            verify_token  = enc_token,
-        )
+        # Packets in the play state should be fine to
+        # handle completely asynchronously.
+        self._listen_sequentially = False
 
-        self.enable_encryption(shared_secret)
+    @pak.packet_listener(clientbound.KeepAlivePacket)
+    async def _on_keep_alive(self, packet):
+        await self.write_packet(
+            serverbound.KeepAlivePacket,
 
-    @packet_listener(clientbound.SetCompressionPacket)
-    async def _on_set_compression(self, p):
-        self.comp_threshold = p.threshold
-
-    @packet_listener(clientbound.LoginSuccessPacket)
-    async def _on_login_success(self, p):
-        self.current_state = enums.State.Play
-
-        self.should_listen_sequentially = False
-
-    @packet_listener(clientbound.KeepAlivePacket)
-    async def _on_keep_alive(self, p):
-        await self.write_packet(serverbound.KeepAlivePacket,
-            keep_alive_id = p.keep_alive_id,
+            keep_alive_id = packet.keep_alive_id,
         )

@@ -1,32 +1,12 @@
 """Utilities for checking object interfaces."""
 
 import os
-import io
+import pak
 
-def is_iterable(obj):
-    """Checks if an object is iterable.
-
-    Parameters
-    ----------
-    obj
-        The object to check. ``obj`` is iterable if it can
-        be used in the following expression::
-
-            for x in obj:
-                pass
-
-    Returns
-    -------
-    :class:`bool`
-        Whether ``obj`` is iterable.
-    """
-
-    try:
-        iter(obj)
-    except TypeError:
-        return False
-    else:
-        return True
+__all__ = [
+    "is_container",
+    "is_pathlike",
+]
 
 def is_container(obj):
     """Checks if an object is a container.
@@ -34,8 +14,10 @@ def is_container(obj):
     Parameters
     ----------
     obj
-        The object to check. ``obj`` is a container if it
-        can be used in the following expression::
+        The object to check.
+
+        ``obj`` is a container if it can be
+        used in the following expression::
 
             x in obj
 
@@ -43,8 +25,21 @@ def is_container(obj):
     -------
     :class:`bool`
         Whether ``obj`` is a container.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> dolor.util.is_container([])
+    True
+    >>> dolor.util.is_container(range(5))
+    True
+    >>> dolor.util.is_container(x for x in range(5))
+    True
+    >>> dolor.util.is_container(1)
+    False
     """
-    return hasattr(obj, "__contains__") or is_iterable(obj)
+
+    return hasattr(obj, "__contains__") or pak.util.is_iterable(obj)
 
 def is_pathlike(obj):
     """Checks if an object is pathlike.
@@ -54,24 +49,21 @@ def is_pathlike(obj):
     obj
         The object to check.
 
+        ``obj`` is pathlike if it can be passed to :func:`open`.
+
     Returns
     -------
     :class:`bool`
         Whether ``obj`` is pathlike.
+
+    Examples
+    --------
+    >>> import dolor
+    >>> dolor.util.is_pathlike("string path")
+    True
+    >>> from pathlib import Path
+    >>> dolor.util.is_pathlike(Path("pathlib"))
+    True
     """
 
     return isinstance(obj, (str, os.PathLike))
-
-def file_object(obj):
-    """Converts an object to a file object.
-
-    Parameters
-    ----------
-    obj : file object or :class:`bytes` or :class:`bytearray`
-        The object to convert.
-    """
-
-    if isinstance(obj, (bytes, bytearray)):
-        return io.BytesIO(obj)
-
-    return obj

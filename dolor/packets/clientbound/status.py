@@ -1,61 +1,52 @@
+r""":class:`Packet`\s in the :attr:`.ConnectionState.Status` state."""
+
+from ..packet import ClientboundPacket, StatusPacket
+
 from ...versions import Version
-from ...types import *
-from ..packet import *
+from ... import types
+from ... import util
+
+__all__ = [
+    "ResponsePacket",
+    "PongPacket",
+]
 
 class ResponsePacket(ClientboundPacket, StatusPacket):
-    class Response(Type):
-        class Response:
-            def __init__(self, *, version=None, players=None, description=None, favicon=None, raw=None):
-                if raw is not None:
-                    self.version = Version(raw["version"]["name"], raw["version"]["protocol"])
-                    self.players = raw["players"]
+    """A reply to a :class:`serverbound.RequestPacket <.RequestPacket>`."""
 
-                    self.description = Chat.Chat(raw["description"])
+    class Response(types.StructuredJSON):
+        """The response data.
 
-                    self.favicon = raw.get("favicon")
-                else:
-                    if not isinstance(description, Chat.Chat):
-                        description = Chat.Chat(description)
+        See https://wiki.vg/Server_List_Ping#Response for more information.
+        """
 
-                    self.version     = version
-                    self.players     = players
-                    self.description = description
-                    self.favicon     = favicon
+        class PlayersInfo(util.StructuredDict):
+            """Info about the :class:`~.Server`'s players."""
 
-            def dict(self):
-                ret = {
-                    "version": {
-                        "name":     self.version.name,
-                        "protocol": self.version.proto
-                    },
+            max:    int
+            online: int
+            sample: list = util.StructuredDict.UNSPECIFIED # TODO: Figure out list of 'StructuredDict's
 
-                    "players":     self.players,
-                    "description": self.description.dict(),
-                }
+        version:     Version
+        players:     PlayersInfo
+        description: types.Chat.Chat
+        favicon:     str = util.StructuredDict.UNSPECIFIED
 
-                if self.favicon is not None:
-                    ret["favicon"] = self.favicon
-
-                return ret
-
-            def __repr__(self):
-                return f"{type(self).__name__}({self.dict()})"
-
-        _default = Response()
-
-        @classmethod
-        def _unpack(cls, buf, *, ctx=None):
-            return cls.Response(raw=Json.unpack(buf, ctx=ctx))
-
-        @classmethod
-        def _pack(cls, value, *, ctx=None):
-            return Json.pack(value.dict(), ctx=ctx)
+        # Seemingly non-standard information regarding the server's mods.
+        modinfo: dict = util.StructuredDict.UNSPECIFIED
 
     id = 0x00
 
     response: Response
 
 class PongPacket(ClientboundPacket, StatusPacket):
+    """A reply to :class:`serverbound.PingPacket <.PingPacket>`.
+
+
+    The :attr:`payload` attribute should hold the same value as the
+    corresponding :class:`serverbound.PingPacket <.PingPacket>`.
+    """
+
     id = 0x01
 
-    payload: Long
+    payload: types.Long

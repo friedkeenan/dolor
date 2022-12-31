@@ -1,439 +1,197 @@
 """Contains :class:`~.Connection`."""
 
-import abc
 import asyncio
-import zlib
 import io
+import zlib
+import pak
 
-from . import enums
-from . import util
-from . import encryption
-from .types import VarInt
-
+from .versions import Version
 from .packets import (
-    GenericPacket,
+    Packet,
     ServerboundPacket,
     ClientboundPacket,
-    HandshakingPacket,
-    StatusPacket,
-    LoginPacket,
-    PlayPacket,
-
+    ConnectionState,
+    GenericPacketWithID,
     serverbound,
     clientbound,
 )
 
-class Connection:
-    """A connection between a client and a server.
+from . import types
+from . import util
+
+__all__ = [
+    "Connection",
+]
+
+class Connection(pak.io.Connection):
+    """A connection between a :class:`~.Client` and :class:`~.Server`.
 
     Parameters
     ----------
     bound
-        Where read packets are bound. Either :mod:`~.serverbound` or :mod:`~.clientbound`.
+        Either :mod:`~.serverbound` or :mod:`~.clientbound`, corresponding
+        to where incoming packets are bound to.
+    version : versionlike
+        The :class:`~.Version` of the :class:`Connection`.
 
     Attributes
     ----------
-    bound
-        Either :class:`~.ServerboundPacket` or :class:`~.ClientboundPacket`.
-        Used by :meth:`gen_packet_info` to populate the :attr:`packet_info`
-        attribute.
-    packet_info : :class:`dict`
-        A dictionary whose keys are packet id's and whose values
-        are subclasses of :class:`~.Packet`. Populated by :meth:`gen_packet_info`
-        and used by :meth:`read_packet` to determine which id corresponds to
-        which subclass of :class:`~.Packet`.
-    read_lock : :class:`asyncio.Lock`
-        The lock to make sure packet reads don't overlap.
-    specific_reads : :class:`dict`
-        A dictionary whose keys are subclasses of :class:`~.Packet`
-        and whose values are :class:`~.AsyncValueHolder`.
+    compression_threshold : :class:`int`
+        The maximum size of a packet before it is compressed.
 
-        Used in :meth:`dispatch_packet` to send packets to specific reads
-        that were made with :meth:`read_packet`.
-    reader : :class:`asyncio.StreamReader`
-        The reader for receiving packet data.
-    writer : :class:`asyncio.StreamWriter`
-        The writer for writing packet data.
-    comp_threshold : :class:`int`
-        The maximum size of a packet before it's compressed.
-
-        If less than or equal to 0, then compression is disabled.
+        If less than zero, then packet compression is disabled.
     """
 
-    def __init__(self, bound):
-        self.bound = {
+    def __init__(self, bound, *, version):
+        super().__init__(ctx=Packet.Context(version))
+
+        self._bound_packet_parent = {
             serverbound: ServerboundPacket,
             clientbound: ClientboundPacket,
         }[bound]
 
-        self.current_state = enums.State.Handshaking
+        self.state = ConnectionState.Handshaking
 
-        self.read_lock      = asyncio.Lock()
-        self.specific_reads = {}
-
-        self.reader = None
-        self.writer = None
-
-        self.comp_threshold = 0
-
-    def gen_packet_info(self, state, *, ctx=None):
-        """Generates the :attr:`packet_info`.
-
-        Parameters
-        ----------
-        state : :class:`~.State`
-            Which state the packet info is for.
-        ctx : :class:`~.PacketContext`, optional
-            Which context the packet info is for.
-
-        Returns
-        -------
-        :class:`dict`
-            The packet info. See :attr:`packet_info` for a more thorough description.
-        """
-
-        state_class = {
-            enums.State.Handshaking: HandshakingPacket,
-            enums.State.Status:      StatusPacket,
-            enums.State.Login:       LoginPacket,
-            enums.State.Play:        PlayPacket,
-        }[state]
-
-        ret = {}
-
-        for c in util.get_subclasses(state_class) & util.get_subclasses(self.bound):
-            id = c.get_id(ctx=ctx)
-
-            if id is not None:
-                ret[id] = c
-
-        return ret
+        self.disable_compression()
 
     @property
-    def ctx(self):
-        """The connection's :class:`~.PacketContext`."""
+    def version(self):
+        """The :class:`~.Version` of the :class:`Connection`."""
 
-        return self._ctx
+        return self.ctx.version
 
-    @ctx.setter
-    def ctx(self, value):
-        self._ctx = value
-
-        try:
-            self.packet_info = self.gen_packet_info(self.current_state, ctx=value)
-        except AttributeError:
-            pass
+    @version.setter
+    def version(self, value):
+        self.ctx = Packet.Context(value)
 
     @property
-    def current_state(self):
-        """The current :class:`~.State` of the connection."""
+    def state(self):
+        """The :class:`~.ConnectionState` of the :class:`Connection`."""
 
-        return self._current_state
+        return self._state
 
-    @current_state.setter
-    def current_state(self, value):
-        self._current_state = value
+    @state.setter
+    def state(self, value):
+        self._available_packets = value.packet_base_class.subclasses() & self._bound_packet_parent.subclasses()
 
-        try:
-            self.packet_info = self.gen_packet_info(value, ctx=self.ctx)
-        except AttributeError:
-            pass
+        self._state = value
 
     @property
-    def comp_enabled(self):
-        """Whether compression is enabled."""
+    def compression_enabled(self):
+        """Whether :class:`~.Packet` compression is enabled."""
 
-        return self.comp_threshold > 0
+        return self.compression_threshold >= 0
 
-    @comp_enabled.setter
-    def comp_enabled(self, value):
-        if not self.comp_enabled and value:
-            # We can't know what threshold to set to enable compression
-            raise ValueError("Cannot set comp_enabled to True if it is False.")
+    def disable_compression(self):
+        """Disables :class:`~.Packet` compression."""
 
-        if not value:
-            self.comp_threshold = 0
+        self.compression_threshold = -1
 
-    def is_closing(self):
-        """Checks if the connection is closed or being closed.
+    @staticmethod
+    @pak.util.cache
+    def _packet_for_id(id, available_packets, *, ctx=None):
+        for packet_cls in available_packets:
+            packet_id = packet_cls.id(ctx=ctx)
 
-        Returns
-        -------
-        :class:`bool`
-            Whether the connection is closed or being closed.
-        """
+            if packet_id is not None and packet_id == id:
+                return packet_cls
 
-        return self.writer is not None and self.writer.is_closing()
+        return None
 
-    def close(self):
-        """Closes the connection.
+    async def _decompressed_file_object(self, data):
+        data = pak.util.file_object(data)
 
-        Should be used alongside the :meth:`wait_closed` method.
-        """
+        if not self.compression_enabled:
+            return data
 
-        if self.writer is not None:
-            self.writer.close()
+        data_len = types.VarInt.unpack(data, ctx=self.ctx)
 
-    async def wait_closed(self):
-        """Waits until the connection is closed."""
+        if data_len > 0:
+            if data_len <= self.compression_threshold:
+                self.close()
+                await self.wait_closed()
 
-        if self.writer is not None:
-            await self.writer.wait_closed()
+                raise ValueError(f"Invalid data length {data_len} for compression threshold {self.compression_threshold}")
 
-    def __del__(self):
-        self.close()
+            data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
 
-    async def __aenter__(self):
-        return self
+        return data
 
-    async def __aexit__(self, exc_type, exc_value, exc_tb):
-        self.close()
-        await self.wait_closed()
+    async def _read_next_packet(self):
+        # We don't need to make sure reading is atomic since this method
+        # is only called by 'continuously_read_packets' which does not
+        # read several packets at once.
 
-    def enable_encryption(self, shared_secret):
-        """Enables encryption for the connection.
+        length_data = b""
 
-        Parameters
-        ----------
-        shared_secret
-            The shared secret, either gotten from :func:`~.gen_shared_secret`
-            or decrypted from :class:`~.EncryptionResponsePacket`.
-        """
+        while True:
+            next_byte = await self.read_data(1)
+            if next_byte is None:
+                return None
 
-        cipher = encryption.gen_cipher(shared_secret)
+            length_data += next_byte
 
-        self.reader = encryption.EncryptedStream(self.reader, cipher.decryptor(), None)
-        self.writer = encryption.EncryptedStream(self.writer, None, cipher.encryptor())
+            try:
+                length = types.VarInt.unpack(length_data, ctx=self.ctx)
 
-    def create_packet(self, pack_class, **kwargs):
-        """Creates a packet with the connection's :attr:`ctx` attribute.
+            except types.VarNumBufferLengthError:
+                # Make sure we don't read the length forever.
+                raise
 
-        Parameters
-        ----------
-        pack_class : subclass of :class:`~.Packet`
-            The packet to create.
-        **kwargs
-            The attributes of the packet to set and their corresponding values.
+            except asyncio.CancelledError:
+                # Make sure we can be cancelled.
+                raise
 
-        Returns
-        -------
-        :class:`~.Packet`
-            The created packet.
-        """
+            except Exception:
+                # If we fail to read a VarInt, read the next byte and try again.
+                continue
 
-        return pack_class(ctx=self.ctx, **kwargs)
+            break
 
-    def dispatch_packet(self, packet):
-        """Dispatches a packet to calls of :meth:`read_packet` which specified ``read_class``.
+        data = await self.read_data(length)
+        if data is None:
+            return None
+
+        data = await self._decompressed_file_object(data)
+
+        packet_header = Packet.Header.unpack(data, ctx=self.ctx)
+        packet_cls    = self._packet_for_id(packet_header.id, self._available_packets, ctx=self.ctx)
+
+        if packet_cls is None:
+            packet_cls = GenericPacketWithID(packet_header.id)
+
+        return packet_cls.unpack(data, ctx=self.ctx)
+
+    def _compressed_data(self, data):
+        if self.compression_enabled:
+            written_data_len = 0
+            real_data_len    = len(data)
+
+            if real_data_len > self.compression_threshold:
+                written_data_len = real_data_len
+                data             = zlib.compress(data)
+
+            data = types.VarInt.pack(written_data_len, ctx=self.ctx) + data
+
+        return data
+
+    async def write_packet_instance(self, packet):
+        """Writes an outgoing :class:`~.Packet` instance.
+
+        Warnings
+        --------
+        In most cases, the :meth:`write_packet` method should be used instead.
+        This method should only be used if you have a pre-existing :class:`~.Packet`
+        instance.
 
         Parameters
         ----------
         packet : :class:`~.Packet`
-            The packet to dispatch.
+            The :class:`~.Packet` to write.
         """
-
-        to_remove = []
-
-        for pack_class, holder in self.specific_reads.items():
-            if isinstance(packet, pack_class):
-                holder.set(packet)
-                to_remove.append(pack_class)
-
-        for pack_class in to_remove:
-            self.specific_reads.pop(pack_class)
-
-    async def wait_for_incoming_packet(self, pack_class):
-        """Waits for an incoming packet read with :meth:`read_packet`.
-
-        Parameters
-        ----------
-        pack_class : subclass of :class:`~.Packet`
-            The packet to wait for.
-
-        Returns
-        -------
-        :class:`~.Packet` or ``None``
-            Returns ``None`` if the connection is closed, else
-            returns the packet.
-        """
-
-        packet_holder = self.specific_reads.get(pack_class)
-
-        if packet_holder is None:
-            packet_holder                   = util.AsyncValueHolder()
-            self.specific_reads[pack_class] = packet_holder
-
-        while not self.is_closing():
-            try:
-                return await asyncio.wait_for(packet_holder.get(), 1)
-            except asyncio.TimeoutError:
-                pass
-
-        return None
-
-    async def decompress_packet_data(self, data):
-        """Decompresses raw packet data.
-
-        Parameters
-        ----------
-        data
-            The raw packet data.
-
-        Returns
-        -------
-        :class:`io.BytesIO`
-            The raw decompressed packet data.
-
-        Raises
-        ------
-        :exc:`ValueError`
-            If compression is enabled and the data length of the packet
-            is greater than 0 but less than or equal to the
-            :attr:`comp_threshold` attribute.
-        """
-
-        data = util.file_object(data)
-
-        if self.comp_enabled:
-            data_len = VarInt.unpack(data, ctx=self.ctx)
-
-            if data_len > 0:
-                if data_len <= self.comp_threshold:
-                    self.close()
-                    await self.wait_closed()
-
-                    raise ValueError(f"Invalid data length {data_len} for compression threshold {self.comp_threshold}")
-
-                data = io.BytesIO(zlib.decompress(data.read(), bufsize=data_len))
-
-        return data
-
-    async def read_packet(self, read_class=None):
-        """Reads a packet.
-
-        Parameters
-        ----------
-        read_class : subclass of :class:`~.Packet`, optional
-            The packet you want to read. If unspecified, whatever
-            the next packet is will be returned. Requires this method
-            to be called elsewhere with ``read_class`` unspecified to work.
-
-        Returns
-        -------
-        :class:`~.Packet` or ``None``
-            If EOF is reached when reading the packet, then the connection
-            will be closed and ``None`` will be returned. Otherwise the read
-            packet will be returned.
-        """
-
-        if read_class is not None:
-            return await self.wait_for_incoming_packet(read_class)
-
-        data = b""
-
-        try:
-            async with self.read_lock:
-                length_buf = b""
-                length     = -1
-
-                while True:
-                    length_buf += await self.reader.readexactly(1)
-
-                    try:
-                        length = VarInt.unpack(length_buf, ctx=self.ctx)
-                    except:
-                        continue
-
-                    break
-
-                if length >= 0:
-                    data = await self.reader.readexactly(length)
-
-        except asyncio.IncompleteReadError:
-            self.close()
-            await self.wait_closed()
-
-            return None
-
-        data = await self.decompress_packet_data(data)
-
-        id         = VarInt.unpack(data, ctx=self.ctx)
-        pack_class = self.packet_info.get(id)
-
-        if pack_class is None:
-            pack_class = GenericPacket(id)
-
-        packet = pack_class.unpack(data, ctx=self.ctx)
-
-        self.dispatch_packet(packet)
-
-        return packet
-
-    def compress_packet_data(self, data):
-        """Compresses raw packet data.
-
-        Parameters
-        ----------
-        data : :class:`bytes`
-            The raw, uncompressed packet data.
-
-        Returns
-        -------
-        ;class:`bytes`
-            The raw, potentially compressed packet data.
-        """
-
-        if self.comp_enabled:
-            data_len = 0
-
-            if len(data) > self.comp_threshold:
-                data_len = len(data)
-                data     = zlib.compress(data)
-
-            data = VarInt.pack(data_len, ctx=self.ctx) + data
-
-        return data
-
-    async def write_packet(self, packet, **kwargs):
-        """Writes a packet.
-
-        Parameters
-        ----------
-        packet : subclass of :class:`~.Packet` or :class:`~.Packet`
-            If a subclass of :class:`~.Packet`, then the packet to write
-            will be created by forwarding ``packet`` and ``**kwargs`` to the
-            :meth:`create_packet` method. Otherwise, ``packet`` is the
-            packet to write.
-
-            ``packet`` being a subclass of :class:`~.Packet` is preferred
-            so that the packet is created with the correct context for
-            the connection.
-        **kwargs
-            The packet attributes to set and their corresponding values.
-            Only able to be passed if ``packet`` is a subclass of :class:`~.Packet`.
-
-        Returns
-        -------
-        :class:`~.Packet`
-            The written packet.
-
-        Raises
-        ------
-        :exc:`TypeError`
-            If ``**kwargs`` is passed but ``packet`` isn't a subclass of
-            :class:`~.Packet`.
-        """
-
-        if isinstance(packet, type):
-            packet = self.create_packet(packet, **kwargs)
-        elif len(kwargs) > 0:
-            raise TypeError("Packet object passed with keyword arguments")
 
         data = packet.pack(ctx=self.ctx)
-        data = self.compress_packet_data(data)
-        data = VarInt.pack(len(data), ctx=self.ctx) + data
+        data = self._compressed_data(data)
+        data = types.VarInt.pack(len(data), ctx=self.ctx) + data
 
-        self.writer.write(data)
-        await self.writer.drain()
-
-        return packet
+        await self.write_data(data)

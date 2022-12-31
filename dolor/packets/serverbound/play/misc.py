@@ -1,22 +1,33 @@
-from .... import enums
-from ....versions import VersionRange
-from ....types import *
-from ...packet import *
+r"""Miscellaneous :class:`~.Packet`\s."""
+
+from ...packet import ServerboundPacket, PlayPacket
+
+from .... import types
+
+__all__ = [
+    "ChatMessagePacket",
+    "KeepAlivePacket",
+]
 
 class ChatMessagePacket(ServerboundPacket, PlayPacket):
-    id = 0x03
+    """A :class:`~.Chat.Chat` message from the :class:`~.Client`.
 
-    message: String(256)
+    For messages from the :class:`~.Server`, see
+    :class:`clientbound.ChatMessagePacket <.clientbound.play.misc.ChatMessagePacket>`.
+    """
 
-class ClientStatusPacket(ServerboundPacket, PlayPacket):
-    id = 0x04
+    id = 0x02
 
-    action: Enum(VarInt, enums.Action)
+    message: types.String(256)
 
 class KeepAlivePacket(ServerboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "20w16a"): 0x0f,
-        VersionRange("20w16a", None): 0x10,
-    }
+    """Sent by the :class:`~.Client` to keep the :class:`~.Connection` alive.
 
-    keep_alive_id: Long
+    When the :class:`~.Client` receives a :class:`clientbound.KeepAlivePacket <.clientbound.play.misc.KeepAlivePacket>`
+    it must respond with this :class:`~.Packet` with the equivalent :attr:`keep_alive_id`
+    within 20 seconds, or else it will be disconnected for timing out.
+    """
+
+    id = 0x0B
+
+    keep_alive_id: types.Long

@@ -1,71 +1,64 @@
+r"""Miscellaneous :class:`~.Packet`\s."""
+
+import enum
+import pak
+
+from ..common import DisconnectPacket
+
+from ...packet import ClientboundPacket, PlayPacket
+
+from .... import types
 from .... import enums
-from ....versions import VersionRange
-from ....types import *
-from ...packet import *
+
+__all__ = [
+    "ChatMessagePacket",
+    "DisconnectPlayPacket",
+    "KeepAlivePacket",
+    "JoinGamePacket",
+]
 
 class ChatMessagePacket(ClientboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "1.16-pre1"):     0x0f,
-        VersionRange("1.16-pre1", "20w49a"): 0x0e,
-        VersionRange("20w49a", None):        0x0f,
-    }
+    """A :class:`~.Chat.Chat` message from the :class:`~.Server`.
 
-    data:     Chat
-    position: Enum(Byte, enums.ChatPosition)
+    For messages from the :class:`~.Client`, see
+    :class:`serverbound.ChatMessagePacket <.serverbound.play.misc.ChatMessagePacket>`.
+    """
 
-    sender: {
-        VersionRange(None, "20w21a"): None,
-        VersionRange("20w21a", None): UUID,
-    }
+    id = 0x0F
 
-class DisconnectPlayPacket(ClientboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "1.16-pre1"):     0x1b,
-        VersionRange("1.16-pre1", "20w28a"): 0x1a,
-        VersionRange("20w28a", "20w49a"):    0x19,
-        VersionRange("20w49a", None):        0x1a
-    }
+    message:  types.Chat
+    position: pak.Enum(types.Byte, enums.ChatPosition)
 
-    reason: Chat
+class DisconnectPlayPacket(DisconnectPacket, ClientboundPacket, PlayPacket):
+    """Alerts the :class:`~.Client` that it's been disconnected.
+
+    Only available in the :attr:`.ConnectionState.Play` state. You should
+    likely use :class:`clientbound.DisconnectPacket <.DisconnectPacket>` instead.
+    """
+
+    id = 0x1A
 
 class KeepAlivePacket(ClientboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "1.16-pre1"):     0x21,
-        VersionRange("1.16-pre1", "20w28a"): 0x20,
-        VersionRange("20w28a", "20w49a"):    0x1f,
-        VersionRange("20w49a", None):        0x20,
-    }
+    """Sent to the :class:`~.Client` to keep the :class:`~.Connection` alive.
 
-    keep_alive_id: Long
+    The :class:`~.Client` must respond with a :class:`serverbound.KeepAlivePacket <.serverbound.play.misc.KeepAlivePacket>`
+    with the same :attr:`keep_alive_id` as received within 20 seconds, or else
+    it will be disconnected for timing out.
+    """
 
-class PlayerPositionAndLook(ClientboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "1.16-pre1"):     0x36,
-        VersionRange("1.16-pre1", "20w28a"): 0x35,
-        VersionRange("20w28a", "20w49a"):    0x34,
-        VersionRange("20w49a", None):        0x35,
-    }
+    id = 0x1F
 
-    position: Vector(Double)
-    yaw:      Float
-    pitch:    Float
+    keep_alive_id: types.Long
 
-    relative: BitMask("Relative", UnsignedByte,
-        x     = 0,
-        y     = 1,
-        z     = 2,
-        y_rot = 3,
-        x_rot = 4,
-    )
+class JoinGamePacket(ClientboundPacket, PlayPacket):
+    """Sent to the :class:`~.Client` shortly after successfully logging in."""
 
-    teleport_id: VarInt
+    id = 0x23
 
-class UpdateHealthPacket(ClientboundPacket, PlayPacket):
-    id = {
-        VersionRange(None, "20w49a"): 0x49,
-        VersionRange("20w49a", None): 0x50,
-    }
-
-    health:     Float
-    food:       VarInt
-    saturation: Float
+    entity_id:          types.Int
+    game_mode:          pak.Enum(types.UnsignedByte, enums.GameMode)
+    dimension:          pak.Enum(types.Int,          enums.Dimension)
+    difficulty:         pak.Enum(types.UnsignedByte, enums.Difficulty)
+    max_players:        types.UnsignedByte
+    level_type:         pak.Enum(types.String(16),   enums.LevelType)
+    reduced_debug_info: types.Boolean

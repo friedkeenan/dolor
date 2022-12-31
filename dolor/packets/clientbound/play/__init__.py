@@ -1,2 +1,3 @@
-from .join_game import *
+r""":class:`Packet`\s in the :attr:`.ConnectionState.Play` state."""
+
 from .misc import *

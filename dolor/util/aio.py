@@ -1,34 +1,45 @@
-"""Asyncio utilities."""
+"""Asynchronous I/O utilities."""
 
 import asyncio
 
+__all__ = [
+    "AsyncValueHolder",
+]
+
 class AsyncValueHolder:
-    """An asynchronous value holder."""
+    """An asynchronous value holder.
+
+    This is essentially a wrapper around :class:`asyncio.Future` to give it
+    a nicer API.
+    """
 
     def __init__(self):
-        self.event = asyncio.Event()
+        self._future = asyncio.get_running_loop().create_future()
 
     async def get(self):
-        """Waits until a value is set using :meth:`set` and then returns that value.
+        """Gets the held value, waiting until a value is held.
+
+        A value is not held until the :meth:`set` method is called.
 
         Returns
         -------
         any
-            The value set using :meth:`set`.
+            The held value.
         """
 
-        await self.event.wait()
+        await self._future
 
-        return self.value
+        return self._future.result()
 
     def set(self, value):
-        """Sets the value to be gotten with :meth:`get`.
+        """Sets the held value.
+
+        The held value should be acquired using the :meth:`get` method.
 
         Parameters
         ----------
         value
-            The value to set.
+            The value to hold.
         """
 
-        self.value = value
-        self.event.set()
+        self._future.set_result(value)
