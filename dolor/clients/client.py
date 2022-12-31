@@ -82,9 +82,9 @@ class Client(Connection, pak.AsyncPacketHandler):
         super().register_packet_listener(listener, *packet_types, outgoing=outgoing, **flags)
 
     async def _listen_to_packet(self, packet, **flags):
-        async with self.listener_task_context(listen_sequentially=self._listen_sequentially):
+        async with self.listener_task_group(listen_sequentially=self._listen_sequentially) as group:
             for listener in self.listeners_for_packet(packet, **flags):
-                self.create_listener_task(listener(packet))
+                group.create_task(listener(packet))
 
     async def _listen_to_incoming_packets(self):
         try:
